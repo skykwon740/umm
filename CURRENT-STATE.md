@@ -3,16 +3,16 @@
 Writer now: none
 
 - Goal: split the root Wikipedia explorer into team-owned modules and offer Wikipedia / Google Images links at each arrived word.
-- User correction: PR #3 was merged by mistake. Ignore it as product direction and implementation source; work from the original root index only. Reverting its remote merge is outside this task.
+- User correction: PR #3 was merged by mistake. Work from the original root index only. Latest user request explicitly authorized removing PR #3 from main; remote read-back confirmed this was already completed by team PR #5.
 - Baseline: `45d50f7` (`main`, PR #3 already merged); working branch `codex/modular-wiki-image-search`; initial working tree clean.
 - Scope: root `index.html`, new `src/` and `styles/`, root explorer development/check scripts, tests and team guide.
-- Protected: `dist/`, `server.mjs`, `server/`, persona data, existing requirements and expansion behavior.
+- Protected: original root explorer, team README and existing requirements/docs. PR #3 files were protected during the original refactor; the later user request explicitly authorized their removal from main.
 - Acceptance: original input → two-hop route → movement → arrival → either result opens with the arrived word → flag → refresh and restart work; shared ES modules have no global script-order coupling.
 - Required checks: module syntax/imports; meaningful navigation, save and URL tests; original expansion tests; real browser root flow and two outgoing destinations, keyboard/focus and narrow viewport.
 - Recovery: revert only the explicit feature commit; keep the `webglobe3` save schema and storage key.
 - Stop: user additionally authorized delivery to main. Finish when main read-back contains the verified feature, or report a required team review if repository rules block merge. No protection changes, force push or next feature.
 - Feature checkpoint: `fd2cb81` — `refactor: split wiki explorer and add Google Images choice`.
-- Added user request (2026-11-03): push the verified changes directly to remote `main`; authorized by the user. No force push, branch-protection changes or PR #3 revert.
+- Added user requests (2026-11-03): deliver verified changes to `main`; then remove the mistakenly merged PR #3 contents. No force push or branch-protection changes. PR #3 removal is PASS at main `a9b66e1`; refactor PR #4 still awaits external approval.
 - AI implementation and required functional checks: PASS. User/team experience acceptance: UNVERIFIED. Main delivery: BLOCKED by repository-required external PR review. PR #4 is open; no protection bypass or deployment performed.
 - Model: retain the current Codex session; tightly coupled refactor with observable checks, no delegation needed. Model/effort switching N/A.
 
@@ -23,7 +23,16 @@ Writer now: none
 | Preserve explorer behavior and saved journeys | PASS | Live Korean/English two-hop routes, click travel, keyboard down/up, drag/zoom, refresh restore, same-word restart; legacy-save and navigation tests |
 | Ignore mistakenly merged PR #3 | PASS | Copied only root index/src/styles/new scripts/test into `.local/root-only`, CommonJS parent + isolated `src/package.json`; checks and 390px iframe run passed without dist/server/root package |
 | Push verified changes to remote main | BLOCKED | Main `9497890` preserved with merge `8ec1264`; normal branch push PASS. PR #4 open: `MERGEABLE`, `BLOCKED`, `REVIEW_REQUIRED`, no status checks. Needs approval from another reviewer before normal merge; no admin bypass |
-| Explain teammate concern about PR #3 | PASS | Current main retains original root `index.html` plus PR #3 dist/server/package files. PR #2 restored wiki-focused README. This mixed tree explains the confusion; a separate PR cannot remove already-merged files. PR #3 cleanup/revert has not been requested or performed |
+| Explain teammate concern about PR #3 | PASS | The mixed main tree explained the concern; PR #2 restored wiki-focused README. Subsequently the user authorized PR #3 removal and team PR #5 completed it |
+| Remove PR #3 contents from main | PASS | Before any new deletion, fresh fetch found main `a9b66e1` already merged team PR #5 (`2908d32` revert). All PR #3-added files removed; root index and team README blob hashes unchanged; docs diff empty. PR #4's 22 changed files contain no dist/server/root-package additions |
+
+## PR #3 removal — 2026-11-03
+
+- User explicitly requested deleting PR #3 contents from main. Fresh main read showed this had already been done by [PR #5](https://github.com/skykwon740/umm/pull/5), merge `a9b66e1c5a29a15890fb60dd05e34387664260e3`.
+- Main tree now contains only `README.md`, original `index.html`, `docs/checklist.md`, `docs/requirements.md`, `docs/tasks.md`.
+- Preservation evidence: index blob `562ac4e60fb0e3b02de77001fbf2ffb2838da70c` and README blob `a260488d33f613d90b006241cb094ccc73bda097` match pre-cleanup main `9497890`; docs are unchanged.
+- No duplicate revert/deletion was applied. Refactor PR #4 remains independent; its changed-file list contains no removed expansion files, so it does not add them back.
+- Acceptance is remote tree removal plus exact original-file preservation. Runtime rerun N/A: original root HTML is byte-identical, and no new runtime source change was made in this cleanup verification.
 
 ## Main delivery — 2026-11-03
 
@@ -48,4 +57,4 @@ Writer now: none
 
 ## Resume
 
-Await another reviewer's approval on PR #4. When the user resumes after approval, inspect the exact PR head and required checks, perform a normal merge, read back main, and stop. No new implementation is pending for this feature. Use the original root explorer only; PR #3 cleanup/revert is separate and needs an explicit user request. The last page still requires the assigned teammates' decision.
+PR #3 removal from main is complete and verified; do not revert it again. Await another reviewer's approval on PR #4. When the user resumes after approval, inspect the exact PR head and required checks, perform a normal merge, read back main, and stop. No new feature implementation is pending. The last page still requires the assigned teammates' decision.
