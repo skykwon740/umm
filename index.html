@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Web Globe</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css">
+<style>
+  :root { --bg:#16161c; --fg:#f3e2b8; --dim:#3f5560; --ui:#6fdcff; --node:#f08a4b; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,body { height:100%; background:var(--bg); color:var(--fg); overflow:hidden;
+    font-family:'Galmuri14','Galmuri11',monospace; font-size:14px; }
+  canvas { position:fixed; inset:0; width:100%; height:100%; image-rendering:pixelated; cursor:grab; }
+  canvas:active { cursor:grabbing; }
+  #fx { pointer-events:none; }
+  #labels { position:fixed; inset:0; pointer-events:none; }
+  .lb { position:absolute; transform:translate(-50%,-100%); white-space:nowrap; padding:1px 3px;
+    background:var(--bg); color:var(--node); font-family:'Galmuri11',monospace; font-size:12px; }
+  .lb.in { color:var(--ui); }
+  .lb.old { color:var(--dim); }
+  #top { position:fixed; top:0; left:0; right:0; z-index:2; background:var(--bg); padding:12px 16px;
+    border-bottom:2px solid var(--ui); }
+  #found { display:flex; gap:10px; align-items:center; color:var(--ui); }
+  #meter { flex:1; height:14px; border:2px solid var(--ui); }
+  #meter i { display:block; height:100%; background:var(--ui); }
+  #side { position:fixed; top:44px; right:0; bottom:0; width:max(240px, 26vw); max-width:50vw; z-index:1;
+    display:flex; flex-direction:column; background:var(--bg); border-left:2px solid var(--ui); }
+  #routeBox { flex:1; min-height:0; overflow:auto; padding:16px 12px; }
+  #routeBox:has(#chain:empty) { visibility:hidden; }
+  #controls { padding:12px; border-bottom:2px solid var(--ui); }
+  #side h2 { font:inherit; color:var(--bg); background:var(--ui); padding:1px 5px; display:inline-block; margin-bottom:12px; }
+  #chain ol { list-style:none; }
+  #chain li { border-left:2px solid var(--dim); padding:0 0 14px 10px; }
+  #chain li:last-child { border-left-color:transparent; }
+  #chain li span { display:block; }
+  #chain li p { margin-top:3px; color:#9aa7ae; font-family:'Galmuri11',monospace; font-size:12px; line-height:1.4; }
+  #chain li.here span { color:var(--node); }
+  #chain li.in span { color:var(--ui); }
+  #chain li.drawing { opacity:.6; }
+  #hint { padding:12px; border-top:2px solid var(--ui); color:var(--fg); line-height:1.9; }
+  #hint span { display:block; }
+  kbd { font:inherit; color:var(--bg); background:var(--ui); padding:1px 5px; margin-right:4px; }
+  #actions > * { width:100%; margin-top:10px; }
+  #bar { display:flex; gap:6px; }
+  input, button, a.btn { font:inherit; color:var(--fg); background:var(--bg); border:2px solid var(--ui);
+    padding:7px 10px; outline:none; text-decoration:none; }
+  input { flex:1; min-width:0; }
+  input::placeholder { color:var(--dim); }
+  input:focus { background:#22222b; }
+  button, a.btn { cursor:pointer; color:var(--ui); }
+  button:hover, a.btn:hover { background:#22222b; }
+  a.btn.go { background:var(--ui); color:var(--bg); }
+  #open { position:fixed; z-index:1; transform:translate(-50%,-100%); white-space:nowrap;
+    max-width:min(70vw, 320px); overflow:hidden; text-overflow:ellipsis; }
+  a.btn.go:hover { background:var(--fg); border-color:var(--fg); }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<canvas id="fx"></canvas>
+<div id="labels"></div>
+<a id="open" class="btn go" target="_blank" rel="noopener" hidden></a>
+<div id="top">
+  <div id="found"><span>발견</span><div id="meter"><i></i></div><span id="pct"></span></div>
+</div>
+<aside id="side">
+  <div id="controls">
+    <form id="bar">
+      <input id="q" placeholder="관심사" autocomplete="off">
+      <button id="goBtn">출발</button>
+    </form>
+    <div id="actions">
+      <button id="again" type="button" hidden>이 주소에서 다시 출발</button>
+    </div>
+  </div>
+  <div id="routeBox"><h2>루트</h2><div id="chain"></div></div>
+  <div id="hint"></div>
+</aside>
+
+<script>
+// ---------- world grid: cube-sphere, 6 faces × N×N tiles ----------
+const N = 24, FACE = N * N;
+const UNKNOWN = 0, PLAN = 1, ROAD = 2, BLDG = 3, ENTERED = 4, GUIDE = 5, GUIDE_OFF = 6;
+const cells = new Uint8Array(6 * FACE);
+const guide = new Uint8Array(cells.length);     // tiles of the current route not walked yet
+let nodes = [];                                 // {t, lang, lat, lon}
+let trip = [];                                  // node indices of the current trip
+let route = [];                                 // ordered cell ids of the current trip
+let here = -1, path = [];                       // walker's tile, tiles left to walk after a click
+
+const DEG = 180 / Math.PI, RAD = Math.PI / 180, Q = 4 / Math.PI;
+const vec = (lat, lon) => [Math.cos(lat*RAD)*Math.sin(lon*RAD), Math.sin(lat*RAD), Math.cos(lat*RAD)*Math.cos(lon*RAD)];
+const ll = v => [Math.asin(Math.max(-1, Math.min(1, v[1]))) * DEG, Math.atan2(v[0], v[2]) * DEG];
+let cu = 0, cv_ = 0;                            // local tile coords of last cellOf() call
+function cellOf(x, y, z) {
+  const ax = Math.abs(x), ay = Math.abs(y), az = Math.abs(z);
+  let f, a, b;
+  if (ax >= ay && ax >= az) { f = x > 0 ? 0 : 1; a = (x > 0 ? -z : z) / ax; b = -y / ax; }
+  else if (az >= ay)        { f = z > 0 ? 2 : 3; a = (z > 0 ? x : -x) / az; b = -y / az; }
+  else                      { f = y > 0 ? 4 : 5; a = x / ay; b = (y > 0 ? z : -z) / ay; }
+  const fu = (Math.atan(a) * Q + 1) * N / 2, fv = (Math.atan(b) * Q + 1) * N / 2;
+  const i = Math.min(N - 1, Math.floor(fu)), j = Math.min(N - 1, Math.floor(fv));
+  cu = fu - i; cv_ = fv - j;
+  return f * FACE + j * N + i;
+}
+function cellVec(c) {
+  const f = Math.floor(c / FACE), j = Math.floor((c % FACE) / N), i = c % N;
+  const a = Math.tan(((i + .5) / N * 2 - 1) / Q), b = Math.tan(((j + .5) / N * 2 - 1) / Q);
+  const v = [[1, -b, -a], [-1, -b, a], [a, -b, 1], [-a, -b, -1], [a, 1, b], [a, -1, -b]][f];
+  const m = Math.hypot(...v); return v.map(x => x / m);
+}
+function slerp(a, b, t) {
+  const d = Math.max(-1, Math.min(1, a[0]*b[0] + a[1]*b[1] + a[2]*b[2]));
+  const w = Math.acos(d); if (w < 1e-6) return a;
+  const s = Math.sin(w), p = Math.sin((1-t)*w)/s, q = Math.sin(t*w)/s;
+  return [a[0]*p + b[0]*q, a[1]*p + b[1]*q, a[2]*p + b[2]*q];
+}
+function hash(s) { let h = 2166136261; for (const ch of s) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+
+// ---------- save ----------
+function save() {
+  try { localStorage.setItem('webglobe3', JSON.stringify({ c: Array.from(cells).join(''), n: nodes, r: route, t: trip, h: here, g: route.filter(c => guide[c]) })); } catch {}
+}
+try {
+  const s = JSON.parse(localStorage.getItem('webglobe3'));
+  if (s && s.c.length === cells.length) {
+    nodes = s.n || []; route = s.r || []; trip = s.t || [];
+    here = s.h ?? route[s.a ?? 0] ?? -1;
+    (s.g ?? route.filter(c => +s.c[c] === PLAN)).forEach(c => guide[c] = 1);
+    for (let k = 0; k < s.c.length; k++) cells[k] = +s.c[k] === PLAN && !route.length ? UNKNOWN : +s.c[k];
+  }
+} catch {}
+
+// ---------- render ----------
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const fx = document.getElementById('fx'), fctx = fx.getContext('2d');
+const PX = 3;
+let W, H, img, buf, above;
+let CX = 0, CY = 0;                             // globe centre: middle of the area the panels leave free
+const view = { lat: 20, lon: 0, R: 60, tLat: 20, tLon: 0, tR: 60 };
+const cellPx = () => view.R * Math.PI / 2 / N;
+const walkR = () => 15 * 2 * N / Math.PI;      // zoom where a tile is ~15px
+function resize() {
+  W = Math.ceil(innerWidth / PX); H = Math.ceil(innerHeight / PX);
+  cv.width = W; cv.height = H;
+  CX = (W - document.getElementById('side').offsetWidth / PX) / 2;
+  CY = (H + document.getElementById('top').offsetHeight / PX) / 2;
+  const k = PX * (devicePixelRatio || 1);
+  fx.width = W * k; fx.height = H * k; fctx.setTransform(k, 0, 0, k, 0, 0); fctx.imageSmoothingEnabled = false;
+  img = ctx.createImageData(W, H); buf = new Uint32Array(img.data.buffer); above = new Int32Array(W);
+  if (!resize.done) { view.R = view.tR = Math.min(W, H) * 0.36; resize.done = true; }
+  dirty = true;
+}
+const rgb = h => { const n = parseInt(h.slice(1), 16); return 0xff000000 | ((n & 255) << 16) | (n & 0xff00) | (n >> 16); };
+const BG = rgb('#16161c');
+const PAL = [
+  ['#1c262e', '#243039', '#2c3a45', '#354552'],   // unknown
+  ['#2f8fb5', '#45acd4', '#6fdcff', '#9be8ff'],   // road not walked yet: UI colour
+  ['#2f8fb5', '#45acd4', '#6fdcff', '#9be8ff'],   // walked road: UI colour
+  ['#a4482a', '#c85f34', '#f08a4b', '#f6ad70'],   // building
+  ['#2f8fb5', '#45acd4', '#6fdcff', '#9be8ff'],   // entered building (+flag): UI colour
+  ['#c4c8cc', '#dcdfe2', '#f2f3f4', '#ffffff'],   // route guide, blinking over whatever is below
+  ['#5a6068', '#6e747c', '#868c94', '#a0a6ae'],   // route guide, off beat
+].map(p => p.map(rgb));
+// line-art buildings: # navy outline / windows / shaded side, w wall. The address decides which one.
+const BLDGC = { '#': '#0e1a45', w: '#e4e9f2' };
+const BLDGS = [[
+  '.....###.....',
+  '......#......',
+  '#############',
+  '#wwwwwwwwww##',
+  '#ww##ww##ww##',
+  '#ww##ww##ww##',
+  '#wwwwwwwwww##',
+  '#ww##ww##ww##',
+  '#ww##ww##ww##',
+  '#wwwwwwwwww##',
+  '#wwwww##www##',
+  '#wwwww##www##',
+  '#wwwww##www##',
+  '#############',
+], [
+  '...###.........',
+  '....#..........',
+  '###############',
+  '#wwwwwwwwwwww##',
+  '#www##www##ww##',
+  '#www##www##ww##',
+  '#wwwwwwwwwwww##',
+  '#www##www##ww##',
+  '#www##www##ww##',
+  '#wwwwwwww##ww##',
+  '###############',
+], [
+  '.........###...',
+  '..........#....',
+  '.......########',
+  '.......#wwwww##',
+  '.......#w##ww##',
+  '########wwwww##',
+  '#wwwwww#w##ww##',
+  '#wwwwww#wwwww##',
+  '#ww##ww#w##ww##',
+  '#ww##ww#wwwww##',
+  '#wwwwww#ww##w##',
+  '#wwwwww#ww##w##',
+  '#wwwwww#ww##w##',
+  '###############',
+]];
+const BLDG_TINY = ['..#..', '#####', '#www#', '#w#w#', '#www#', '#####'];   // seen from far away
+// swallowtail flag, base of the pole at the bottom-left
+const FLAG_SPRITE = [
+  '#.#######',
+  '#.#####..',
+  '#.####...',
+  '#.#####..',
+  '#.#######',
+  '#........',
+  '#........',
+  '#........',
+];
+const L = (() => { const v = [-0.45, 0.55, 0.7], m = Math.hypot(...v); return v.map(x => x / m); })();
+
+// character (facing right): O cap, X edge, W body, B/E eye black + white
+const SPRITE = [
+  '...OOOOO...',
+  '..OOOOOOOO.',
+  '..XXXXXXX..',
+  '.XWWWWWWWX.',
+  '.XWWBEWBEX.',
+  '.XWWWWWWWX.',
+  '..XWWWWWX..',
+  '...XWWWX...',
+];
+const LEGS = [['...XWXWX...', '...XX.XX...'], ['..XWX.XWX..', '..XX...XX..']];
+const RAINBOW = ['#b2d620', '#f0925a', '#fa4fa8', '#c050d8', '#6a50e0', '#3038c0'].map(h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)));
+// diagonal colour run from the top left down to the feet, pixels washed out unevenly like a mosaic
+function rainbow(x, y, pale) {
+  const t = Math.min(0.999, (x / 10 * 0.6 + y / 9) / 1.6) * (RAINBOW.length - 1), i = Math.floor(t), f = t - i;
+  const wash = pale + ((x * 7 + y * 13) % 5) / 5 * 0.18;
+  const c = RAINBOW[i].map((v, k) => v + (RAINBOW[i + 1][k] - v) * f).map(v => Math.round(v + (255 - v) * wash));
+  return `rgb(${c})`;
+}
+const SPC = { O: (x, y) => rainbow(x, y, 0.1), X: (x, y) => rainbow(x, y, 0.2), W: (x, y) => rainbow(x, y, 0), B: '#0a0a0a', E: '#ffffff' };
+function makeSprite(rows, colors, ring) {
+  const pad = ring ? 1 : 0, c = document.createElement('canvas');
+  c.width = rows[0].length + pad * 2; c.height = rows.length + pad * 2;
+  const g = c.getContext('2d');
+  const each = fn => rows.forEach((row, y) => [...row].forEach((ch, x) => { if (colors[ch]) fn(x + pad, y + pad, ch); }));
+  if (ring) { g.fillStyle = ring; each((x, y) => { g.fillRect(x-1, y, 3, 1); g.fillRect(x, y-1, 1, 3); }); }
+  each((x, y, ch) => { const c = colors[ch]; g.fillStyle = typeof c === 'function' ? c(x, y) : c; g.fillRect(x, y, 1, 1); });
+  return c;
+}
+const BLDG_IMGS = BLDGS.map(b => makeSprite(b, BLDGC)), BLDG_TINY_IMG = makeSprite(BLDG_TINY, BLDGC);
+const FLAG_IMG = makeSprite(FLAG_SPRITE, { '#': '#6fdcff' }, '#16161c');
+const CHAR_IMGS = LEGS.map(l => makeSprite(SPRITE.concat(l), SPC));
+
+let dirty = true, walker = null, facing = 1, lastStep = -1e9;   // walker: unit vec
+function render(now = performance.now()) {
+  const cx = CX, cy = CY, R = view.R;
+  const cl = Math.cos(view.lat*RAD), sl = Math.sin(view.lat*RAD), co = Math.cos(view.lon*RAD), so = Math.sin(view.lon*RAD);
+  const px = cellPx();
+  const grid = px >= 5;
+  const y0 = Math.max(0, Math.floor(cy - R)), y1e = Math.min(H, Math.ceil(cy + R));
+  buf.fill(BG); above.fill(-1);
+  for (let y = y0; y < y1e; y++) {
+    const dy = (cy - y - 0.5) / R;
+    let left = -1;
+    for (let x = 0; x < W; x++) {
+      const dx = (x + 0.5 - cx) / R, d2 = dx*dx + dy*dy;
+      if (d2 > 1) { left = above[x] = -1; continue; }
+      const z = Math.sqrt(1 - d2);
+      const wy = dy*cl + z*sl, z1 = -dy*sl + z*cl;
+      const wx = dx*co + z1*so, wz = -dx*so + z1*co;
+      const c = cellOf(wx, wy, wz);
+      const edge = (left >= 0 && left !== c) || (above[x] >= 0 && above[x] !== c);
+      left = above[x] = c;
+      const type = guide[c] && cells[c] < BLDG ? (blinkOn ? GUIDE : GUIDE_OFF) : cells[c];
+      let lv = dx*L[0] + dy*L[1] + z*L[2];
+      lv = lv > 0.75 ? 3 : lv > 0.45 ? 2 : lv > 0.1 ? 1 : 0;
+      const pal = PAL[type];
+      const k = y*W + x;
+      if (grid && edge) { buf[k] = type ? pal[Math.max(0, lv - 1)] : pal[0]; continue; }
+      buf[k] = pal[lv];
+    }
+  }
+  fctx.clearRect(0, 0, W, H);
+  drawBuildings();
+  if (walker) drawSprite(now);
+  ctx.putImageData(img, 0, 0);
+  drawLabels();
+}
+// buildings and flags point out from the globe's centre, like ticks around a dial. The camera is
+// treated as tilted so the middle of the view leans gently instead of fanning out from one point.
+function pose(p, n) {
+  const px = cellPx(), s = px >= 20 ? 2 : 1;
+  const sprite = px >= 10 ? BLDG_IMGS[hash(n.t) % BLDG_IMGS.length] : BLDG_TINY_IMG;
+  const sx = (p.x - CX) / view.R, sy = (p.y - CY) / view.R;
+  const ax = sx, ay = sy * 0.8 - p.z * 0.6, m = Math.hypot(ax, ay);
+  const ux = m < 1e-3 ? 0 : ax / m, uy = m < 1e-3 ? -1 : ay / m;
+  const off = -px * 0.25;              // foot of the building sits inside its tile
+  // far away the flag shrinks with the building so it doesn't outweigh it
+  return { s, fs: px >= 10 ? s : 0.6, ux, uy, sprite, h: sprite.height * s, bx: p.x + ux * off, by: p.y + uy * off };
+}
+// sprites go on a finer layer so their pixel blocks rotate cleanly
+function place(img, x, y, ux, uy, s, ax) {
+  fctx.save();
+  fctx.translate(x, y); fctx.rotate(Math.atan2(ux, -uy));
+  fctx.drawImage(img, -ax * s, -img.height * s, img.width * s, img.height * s);
+  fctx.restore();
+}
+function drawBuildings() {
+  const list = [];
+  for (const n of nodes) {
+    const p = project(vec(n.lat, n.lon));
+    if (p && p.x > -60 && p.y > -60 && p.x < W + 60 && p.y < H + 60) list.push([p, n]);
+  }
+  list.sort((a, b) => a[0].z - b[0].z);   // limb first, so the ones facing the camera overlap them
+  for (const [p, n] of list) {
+    const { s, fs, ux, uy, sprite, h, bx, by } = pose(p, n);
+    place(sprite, bx, by, ux, uy, s, sprite.width / 2);
+    const roof = h - 2 * s;   // planted where the antenna meets the roof
+    if (cells[nodeCell(n)] === ENTERED) place(FLAG_IMG, bx + ux * roof, by + uy * roof, ux, uy, fs, 1);
+  }
+}
+function drawSprite(now) {
+  const p = project(walker); if (!p) return;
+  const s = cellPx() >= 18 ? 2 : 1;
+  const img = CHAR_IMGS[now - lastStep < 140 ? 1 : 0];
+  fctx.save();
+  fctx.translate(Math.round(p.x), Math.round(p.y + cellPx() * 0.25));
+  fctx.scale(facing, 1);
+  fctx.drawImage(img, -img.width * s / 2, -img.height * s, img.width * s, img.height * s);
+  fctx.restore();
+}
+function project(w) {
+  const cl = Math.cos(view.lat*RAD), sl = Math.sin(view.lat*RAD), co = Math.cos(view.lon*RAD), so = Math.sin(view.lon*RAD);
+  const x1 = w[0]*co - w[2]*so, z1 = w[0]*so + w[2]*co;
+  const y = w[1]*cl - z1*sl, z = w[1]*sl + z1*cl;
+  if (z < 0.05) return null;
+  return { x: CX + x1*view.R, y: CY - y*view.R, z };
+}
+function unproject(sx, sy) {           // screen px → cell id (or -1)
+  const dx = (sx / PX - CX) / view.R, dy = (CY - sy / PX) / view.R, d2 = dx*dx + dy*dy;
+  if (d2 > 1) return -1;
+  const z = Math.sqrt(1 - d2);
+  const cl = Math.cos(view.lat*RAD), sl = Math.sin(view.lat*RAD), co = Math.cos(view.lon*RAD), so = Math.sin(view.lon*RAD);
+  const wy = dy*cl + z*sl, z1 = -dy*sl + z*cl;
+  return cellOf(dx*co + z1*so, wy, -dx*so + z1*co);
+}
+
+// ---------- labels ----------
+const labelsEl = document.getElementById('labels');
+const wikiURL = n => `https://${n.lang}.wikipedia.org/wiki/${encodeURIComponent(n.t.replace(/ /g, '_'))}`;
+const nodeCell = n => cellOf(...vec(n.lat, n.lon));
+function drawLabels() {
+  const showOld = cellPx() >= 9;
+  let html = '';
+  openEl.style.visibility = 'hidden';                 // shown again below if its building is in view
+  nodes.forEach((n, idx) => {
+    const inTrip = trip.includes(idx);
+    if (!inTrip && !showOld && nodeCell(n) !== here) return;
+    const p = project(vec(n.lat, n.lon)); if (!p) return;
+    const entered = cells[nodeCell(n)] === ENTERED;
+    const cls = !inTrip ? 'lb old' : entered ? 'lb in' : 'lb';
+    const f = pose(p, n), reach = f.h + (entered ? FLAG_SPRITE.length * f.fs : 0) + 3;   // clear the roof / flag
+    const lx = f.bx + f.ux * reach, ly = f.by + f.uy * reach;
+    if (nodeCell(n) === here && !openEl.hidden) { placeOpen(lx * PX, ly * PX); return; }   // the button takes the label's place
+    html += `<span class="${cls}" style="left:${lx*PX}px;top:${ly*PX - 4}px">${esc(n.t)}</span>`;
+  });
+  labelsEl.innerHTML = html;
+}
+// the link button floats over the building, kept inside the area the panels leave free
+function placeOpen(x, y) {
+  const w = openEl.offsetWidth, h = openEl.offsetHeight, side = document.getElementById('side').offsetWidth;
+  const top = document.getElementById('top').offsetHeight;
+  openEl.style.left = Math.max(w/2 + 8, Math.min(innerWidth - side - w/2 - 8, x)) + 'px';
+  openEl.style.top = Math.max(top + h + 8, Math.min(innerHeight - 8, y)) + 'px';
+  openEl.style.visibility = 'visible';
+}
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+
+// ---------- walking ----------
+const keys = new Set();
+const KEYV = { ArrowUp: [0, -1], w: [0, -1], ArrowDown: [0, 1], s: [0, 1], ArrowLeft: [-1, 0], a: [-1, 0], ArrowRight: [1, 0], d: [1, 0] };
+// every drawn tile (this trip or any earlier one) is walkable; touching tiles connect
+const NEAR = Math.cos(6 * RAD);
+function neighbours(c, drawn) {
+  const a = cellVec(c);
+  return drawn.filter(d => { if (d === c) return false; const b = cellVec(d); return a[0]*b[0] + a[1]*b[1] + a[2]*b[2] > NEAR; });
+}
+const drawnCells = () => { const out = []; cells.forEach((t, c) => { if (t) out.push(c); }); return out; };
+// breadth-first from `here`, up to `depth` steps → Map(cell → previous cell)
+function explore(depth) {
+  const drawn = drawnCells(), prev = new Map([[here, -1]]);
+  let edge = [here];
+  for (let d = 0; d < depth && edge.length; d++) {
+    const next = [];
+    for (const c of edge) for (const n of neighbours(c, drawn)) if (!prev.has(n)) { prev.set(n, c); next.push(n); }
+    edge = next;
+  }
+  return { prev, edge };
+}
+// route tiles from a (exclusive) to b, forwards or backwards; a tile can appear twice if the route crosses itself
+function alongRoute(a, b) {
+  let from = -1, to = -1;
+  route.forEach((x, i) => { if (x === a) route.forEach((y, j) => {
+    if (y === b && (from < 0 || Math.abs(i - j) < Math.abs(from - to))) { from = i; to = j; }
+  }); });
+  return from < to ? route.slice(from + 1, to + 1) : route.slice(to, from).reverse();
+}
+function walked(c) { guide[c] = 0; if (cells[c] === PLAN) cells[c] = ROAD; }
+function step(to) {
+  const pa = project(cellVec(here)), pb = project(cellVec(to));
+  if (pa && pb && Math.abs(pb.x - pa.x) > 0.5) facing = pb.x > pa.x ? 1 : -1;
+  // a diagonal step can cut a corner of the route: count the tile it skipped as walked
+  const a = route.indexOf(here), b = route.indexOf(to);
+  if (a >= 0 && b >= 0 && Math.abs(a - b) <= 3) for (let i = Math.min(a, b); i <= Math.max(a, b); i++) walked(route[i]);
+  here = to; lastStep = performance.now();
+  walked(here);
+  save(); arrive();
+}
+function keyStep() {
+  let kx = 0, ky = 0;
+  for (const k of keys) if (KEYV[k]) { kx += KEYV[k][0]; ky += KEYV[k][1]; }
+  if (!kx && !ky) return false;
+  const p = project(cellVec(here)); if (!p) return false;
+  // compare with the general heading a few tiles ahead, so diagonal zigzags still follow one key
+  const { prev } = explore(4);
+  let best = -1, bestDot = 0.25;
+  for (const c of prev.keys()) {
+    if (c === here) continue;
+    const q = project(cellVec(c)); if (!q) continue;
+    const vx = q.x - p.x, vy = q.y - p.y, m = Math.hypot(vx, vy) * Math.hypot(kx, ky) || 1;
+    const d = (vx*kx + vy*ky) / m;
+    if (d > bestDot) { bestDot = d; best = c; }
+  }
+  if (best >= 0) {
+    while (prev.get(best) !== here) best = prev.get(best);
+    path = []; step(best);
+  }
+  return true;
+}
+// standing on a building → offer to enter it
+function arrive() {
+  const n = nodes.find(m => nodeCell(m) === here) || null;
+  openEl.hidden = againEl.hidden = !n; dirty = true;
+  if (n) { openEl.href = wikiURL(n); openEl.textContent = '↗ ' + n.t + ' 들어가기'; againEl.onclick = () => run(n.t, n.lang); }
+  showChain();
+}
+function enter() {
+  const c = here;
+  if (cells[c] === BLDG) { cells[c] = ENTERED; save(); dirty = true; showChain(); }
+}
+
+// ---------- loop ----------
+let blinkOn = true;
+function frame(t) {
+  const on = Math.floor(t / 450) % 2 === 0;
+  if (on !== blinkOn) { blinkOn = on; if (route.length) dirty = true; }
+  const k = 0.12;
+  if (walker && here >= 0 && !revealing) {
+    const target = cellVec(here);
+    const d = Math.hypot(target[0]-walker[0], target[1]-walker[1], target[2]-walker[2]);
+    if (d > 1e-4) {
+      walker = walker.map((x, i) => x + (target[i] - x) * 0.35); const m = Math.hypot(...walker); walker = walker.map(x => x / m);
+      const [la, lo] = ll(walker); view.tLat = la; view.tLon = lo; dirty = true;
+    }
+    if (t - lastStep > 110) {
+      if (!keyStep() && path.length) step(path.shift());
+    }
+    if (t - lastStep < 300) dirty = true;
+  }
+  let dl = ((view.tLon - view.lon + 540) % 360) - 180;
+  if (Math.abs(dl) > 0.01 || Math.abs(view.tLat - view.lat) > 0.01 || Math.abs(view.tR - view.R) > 0.1) {
+    view.lon += dl * k; view.lat += (view.tLat - view.lat) * k; view.R += (view.tR - view.R) * k; dirty = true;
+  }
+  if (dirty) { render(t); dirty = false; }
+  requestAnimationFrame(frame);
+}
+
+// ---------- input ----------
+let drag = null;
+cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = (e.clientX - drag.x) / PX, dy = (e.clientY - drag.y) / PX;
+  drag.x = e.clientX; drag.y = e.clientY;
+  view.lon = view.tLon = view.lon - dx / view.R * DEG;
+  view.lat = view.tLat = Math.max(-85, Math.min(85, view.lat + dy / view.R * DEG));
+  dirty = true;
+});
+cv.addEventListener('pointerup', e => {
+  // a click (not a drag) on a drawn tile → walk there
+  if (drag && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 5 && here >= 0 && !revealing) {
+    let c = unproject(e.clientX, e.clientY);
+    // a building stands above its tile, so a click on the sprite counts too
+    for (const n of nodes) {
+      const p = project(vec(n.lat, n.lon)); if (!p) continue;
+      const f = pose(p, n), mx = f.bx + f.ux * f.h / 2, my = f.by + f.uy * f.h / 2;
+      if (Math.hypot(e.clientX / PX - mx, e.clientY / PX - my) < f.h * 0.6) c = nodeCell(n);
+    }
+    if (c >= 0 && cells[c] && c !== here) {
+      const { prev } = explore(cells.length);
+      if (prev.has(c)) {
+        const shortest = to => { const p = []; for (let k = to; k !== here; k = prev.get(k)) p.unshift(k); return p; };
+        // a route tile: join the route at its nearest tile, then walk it in the order it was drawn
+        const entry = route.includes(c) ? [...prev.keys()].find(k => route.includes(k)) : undefined;
+        path = entry === undefined ? shortest(c) : [...shortest(entry), ...alongRoute(entry, c)];
+      } else { path = []; here = c; save(); arrive(); }   // a road this one doesn't touch: hop over
+    }
+  }
+  drag = null;
+});
+addEventListener('wheel', e => {
+  e.preventDefault();
+  view.tR = Math.max(25, Math.min(1400, view.tR * Math.exp(-e.deltaY * 0.0015)));
+}, { passive: false });
+addEventListener('resize', resize);
+addEventListener('keydown', e => {
+  if (['INPUT', 'A', 'BUTTON'].includes(e.target.tagName) && e.key === 'Enter' || e.target.tagName === 'INPUT') return;
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (KEYV[k]) { keys.add(k); e.preventDefault(); }
+  if (k === 'Enter' && !openEl.hidden) { openEl.click(); }
+});
+addEventListener('keyup', e => keys.delete(e.key.length === 1 ? e.key.toLowerCase() : e.key));
+addEventListener('blur', () => keys.clear());
+
+// ---------- wikipedia ----------
+async function api(lang, p) {
+  const r = await fetch(`https://${lang}.wikipedia.org/w/api.php?` + new URLSearchParams({ ...p, format: 'json', origin: '*' }));
+  return r.json();
+}
+async function search(lang, q) {
+  const d = await api(lang, { action: 'query', list: 'search', srsearch: q, srlimit: 1, srnamespace: 0 });
+  return d.query.search[0]?.title;
+}
+// one short line saying what the word is
+async function describe(lang, title) {
+  try {
+    const d = await api(lang, { action: 'query', prop: 'extracts', exintro: 1, explaintext: 1, exchars: 160, titles: title, redirects: 1 });
+    const text = (Object.values(d.query.pages)[0].extract || '').replace(/\s*[(（][^)）]*[)）]/g, '').replace(/\s+/g, ' ').trim();
+    const line = (text.match(/^.*?(다\.|\.\s)/) || [text])[0].trim();
+    return line.length > 70 ? line.slice(0, 70) + '…' : line;
+  } catch { return ''; }
+}
+async function links(lang, title) {
+  const d = await api(lang, { action: 'query', prop: 'links', titles: title, plnamespace: 0, pllimit: 'max', redirects: 1 });
+  return (Object.values(d.query.pages)[0].links || []).map(l => l.title);
+}
+function okWord(t, path) {
+  if (t.length < 2 || t.length > 28) return false;
+  if (/[:(]|^\d|목록|연표|List of|Index of|\d{3,}/i.test(t)) return false;
+  const lt = t.toLowerCase();
+  return path.every(p => { const lp = p.toLowerCase(); return !lt.includes(lp) && !lp.includes(lt); });
+}
+// pick a linked word that does NOT link back → connected, but not the obvious neighbour
+async function pick(lang, cur, path) {
+  const all = (await links(lang, cur)).filter(t => okWord(t, path));
+  for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
+  const cand = all.slice(0, 40);
+  if (!cand.length) return null;
+  const d = await api(lang, { action: 'query', titles: cand.join('|'), prop: 'links|pageprops', ppprop: 'disambiguation',
+    pltitles: path.join('|'), pllimit: 'max', redirects: 1 });
+  const pages = Object.values(d.query.pages).filter(p => !('missing' in p) && p.ns === 0 && !p.pageprops && okWord(p.title, path));
+  const far = pages.filter(p => !p.links);
+  const pool = far.length ? far : pages;
+  return pool.length ? pool[Math.floor(Math.random() * pool.length)].title : cand[0];
+}
+
+// ---------- route reveal ----------
+function addNode(t, lang, d) {
+  let idx = nodes.findIndex(n => n.t === t && n.lang === lang);
+  if (idx < 0) { const [lat, lon] = ll(cellVec(hash(t) % cells.length)); nodes.push({ t, lang, lat, lon }); idx = nodes.length - 1; }
+  if (d) nodes[idx].d = d;
+  const c = nodeCell(nodes[idx]);
+  if (cells[c] !== ENTERED) cells[c] = BLDG;
+  if (!route.length || route[route.length - 1] !== c) route.push(c);
+  trip.push(idx); save(); dirty = true;
+  return nodes[idx];
+}
+const wait = ms => new Promise(r => setTimeout(r, ms));
+let revealing = false;
+function reveal(a, b) {
+  return new Promise(done => {
+    const va = vec(a.lat, a.lon), vb = vec(b.lat, b.lon);
+    const ang = Math.acos(Math.max(-1, Math.min(1, va[0]*vb[0] + va[1]*vb[1] + va[2]*vb[2]))) * DEG;
+    const n = Math.max(1, Math.ceil(ang * 4)), dur = 600 + ang * 10, t0 = performance.now();
+    let s = 0;
+    view.tR = Math.min(W, H) * 0.42;
+    (function tick(now) {
+      const t = Math.min(1, (now - t0) / dur);
+      for (; s <= n * t; s++) {
+        const p = slerp(va, vb, s / n), c = cellOf(...p);
+        if (route[route.length - 1] !== c) { route.push(c); guide[c] = 1; if (!cells[c]) cells[c] = PLAN; }
+        const [la, lo] = ll(p); view.tLat = la; view.tLon = lo;
+      }
+      dirty = true;
+      if (t < 1) requestAnimationFrame(tick); else done();
+    })(t0);
+  });
+}
+
+const chainEl = document.getElementById('chain'), pctEl = document.getElementById('pct');
+const meterEl = document.querySelector('#meter i'), hintEl = document.getElementById('hint');
+const qEl = document.getElementById('q'), openEl = document.getElementById('open'), againEl = document.getElementById('again');
+openEl.addEventListener('click', enter);
+let pending = false;
+let upcoming = null;                            // word whose road is being drawn right now
+let holding = false;                            // camera resting on the last building
+function showChain() {
+  const row = (n, cls) => `<li class="${cls}"><span>${esc(n.t)}</span>${n.d ? `<p>${esc(n.d)}</p>` : ''}</li>`;
+  const rows = trip.map(i => {
+    const c = nodeCell(nodes[i]);
+    return row(nodes[i], c === here ? 'here' : cells[c] === ENTERED ? 'in' : '');
+  });
+  if (upcoming) rows.push(row(upcoming, 'drawing'));
+  chainEl.innerHTML = rows.length || pending ? `<ol>${rows.join('')}</ol>${pending && !upcoming && !holding ? '…' : ''}` : '';
+  let n = 0; for (const c of cells) if (c >= ROAD) n++;
+  const pct = n / cells.length * 100;
+  pctEl.textContent = pct.toFixed(2) + '%';
+  meterEl.style.width = n ? `max(2px, ${pct}%)` : '0';
+  showHint();
+}
+// controls for the current stage only
+function showHint() {
+  const onNode = nodes.some(n => nodeCell(n) === here);
+  const look = [['드래그', '회전'], ['휠', '확대']];
+  let items;
+  if (holding) items = [['', '마지막 건물 도착']];
+  else if (pending) items = [['', '루트 찾는 중…']];
+  else if (here < 0) items = [['Enter', '관심사 입력 후 출발'], ...look];
+  else if (onNode && cells[here] === BLDG) items = [['Enter', '건물 들어가기'], ['↑↓←→', '이동']];
+  else if (here === route[route.length - 1]) items = [['', '새 관심사를 입력하거나 이 주소에서 다시 출발']];
+  else items = [['↑↓←→', '이동'], ['클릭', '길 위 타일로 이동'], ...look];
+  hintEl.innerHTML = items.map(([k, t]) => `<span>${k ? `<kbd>${k}</kbd>` : ''}${t}</span>`).join('');
+}
+
+let busy = false;
+async function run(q, lang) {
+  if (busy || !q.trim()) return;
+  busy = true; openEl.hidden = againEl.hidden = true;
+  for (let k = 0; k < cells.length; k++) if (cells[k] === PLAN) cells[k] = UNKNOWN;
+  guide.fill(0);
+  trip = []; route = []; here = -1; path = []; walker = null; revealing = true; pending = true;
+  lang = lang || (/[ㄱ-ㅎ가-힣]/.test(q) ? 'ko' : 'en');
+  showChain();
+  try {
+    const first = await search(lang, q);
+    if (!first) { chainEl.innerHTML = `${esc(q)} ×`; return; }
+    let cur = addNode(first, lang, await describe(lang, first));
+    view.tLat = cur.lat; view.tLon = cur.lon; view.tR = Math.min(W, H) * 0.42;
+    showChain();
+    const path = [q, first];
+    for (let hop = 0; hop < 2; hop++) {
+      const [w] = await Promise.all([pick(lang, cur.t, path), wait(500)]);
+      if (!w) break;
+      path.push(w);
+      const [lat, lon] = ll(cellVec(hash(w) % cells.length));
+      upcoming = { t: w, d: await describe(lang, w) };
+      showChain();
+      await reveal(cur, { lat, lon });
+      cur = addNode(w, lang, upcoming.d);
+      upcoming = null;
+      showChain();
+    }
+    if (trip.length > 1) {          // stay on the last building a moment, longer for a longer word
+      holding = true; showChain();
+      view.tLat = cur.lat; view.tLon = cur.lon; view.tR = walkR();
+      await wait(Math.min(3000, 1300 + cur.t.length * 120));
+    }
+  } catch (err) {
+    console.error(err);
+  } finally {
+    pending = false; revealing = false; busy = false; upcoming = null; holding = false;
+    if (route.length) {
+      here = route[0]; walker = cellVec(here); facing = 1;
+      const [la, lo] = ll(walker); view.tLat = la; view.tLon = lo; view.tR = walkR();
+      save(); arrive();
+    } else showHint();
+  }
+}
+document.getElementById('bar').addEventListener('submit', e => { e.preventDefault(); qEl.blur(); run(qEl.value); });
+
+resize();
+// always start with the character standing at the centre of the screen
+const last = nodes[nodes.length - 1];
+if (here < 0 && last) here = nodeCell(last);
+walker = here >= 0 ? cellVec(here) : vec(view.lat, view.lon);
+[view.lat, view.lon] = ll(walker); view.tLat = view.lat; view.tLon = view.lon;
+if (nodes.length) view.R = view.tR = walkR();
+arrive();
+// trips saved before descriptions existed
+trip.forEach(async i => { const n = nodes[i]; if (!n.d) { n.d = await describe(n.lang, n.t); save(); showChain(); } });
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
