@@ -1,0 +1,17 @@
+  :root { --bg:#16161c; --fg:#f3e2b8; --dim:#3f5560; --ui:#6fdcff; --node:#f08a4b; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,body { height:100%; background:var(--bg); color:var(--fg); overflow:hidden;
+    font-family:'Galmuri14','Galmuri11',monospace; font-size:14px; }
+  input, button, a.btn { font:inherit; color:var(--fg); background:var(--bg); border:2px solid var(--ui);
+    padding:7px 10px; outline:none; text-decoration:none; }
+  input { flex:1; min-width:0; }
+  input::placeholder { color:#9aa7ae; }
+  input:focus { background:#22222b; }
+  button, a.btn { cursor:pointer; color:var(--ui); }
+  button:hover, a.btn:hover { background:#22222b; }
+  a.btn.go { background:var(--ui); color:var(--bg); }
+  a.btn.go:hover { background:var(--fg); border-color:var(--fg); }
+
+  :focus-visible {outline:2px solid var(--fg);outline-offset:3px;}
+  button:disabled {opacity:.6;cursor:wait;}
+  [hidden] {display:none !important;}
