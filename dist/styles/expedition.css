@@ -1,0 +1,27 @@
+.map-tools #personaButton{font-size:12px;padding:0 12px;color:var(--accent)}
+.wide-dialog{width:min(860px,calc(100% - 32px))}
+.app-dialog p{font-size:11px;line-height:1.9;overflow-wrap:anywhere}
+.muted{color:var(--muted);font-size:10px}
+.app-dialog label{display:block;font-size:11px;margin:18px 0 8px}
+.app-dialog input:not([type=file]),.app-dialog textarea{width:100%;padding:10px;background:#202820;color:var(--fg);border:1px solid var(--line);font:11px/1.8 var(--font);resize:vertical}
+.primary-action,.persona-choose{display:block;margin-top:18px;padding:10px 15px;border:1px solid var(--accent);color:var(--accent);font:11px var(--font)}
+.persona-card{padding:18px 0;border-bottom:1px solid var(--line)}
+.persona-card h3{font-size:16px;font-weight:400;color:var(--accent)}
+.persona-role{color:var(--accent)}
+.persona-card summary{font-size:11px;cursor:pointer;padding:10px 0}
+.persona-log{max-height:330px;overflow:auto;border-top:1px solid var(--line);padding:8px}
+.persona-log>div{padding:12px 0;border-bottom:1px solid var(--line)}
+.persona-log time,.persona-log small,.persona-log code{display:block;font-size:10px;color:var(--muted);overflow-wrap:anywhere}
+.persona-log p{margin:5px 0}.persona-note{color:var(--accent)}
+.persona-choose:disabled{opacity:.5;cursor:default}
+#expeditionDock{position:fixed;left:20px;bottom:74px;z-index:5;display:flex;align-items:center;gap:14px;padding:12px;background:#161c18f2;border:1px solid var(--line);font-size:11px;max-width:calc(100% - 40px)}
+#expeditionDock[hidden]{display:none}#expeditionClock{color:var(--accent)}
+#expeditionAction{color:var(--accent);white-space:nowrap}#cancelExpedition{font-size:18px}
+.archive-entry,.comparison-entry{padding:18px 0;border-bottom:1px solid var(--line)}
+.archive-entry h3,.comparison-entry h3{font-size:13px;font-weight:400;color:var(--accent)}
+.archive-actions{display:flex;gap:16px;flex-wrap:wrap;font-size:10px;color:var(--accent);margin:16px 0}
+.archive-meta,.comparison-question{color:var(--muted)}
+.shared-page-link{margin-top:16px;color:var(--accent);font-size:11px;border-bottom:1px solid var(--line);padding:8px 0}
+.shared-record{padding:18px 0;border-top:1px solid var(--line)}.shared-record h3{font-size:13px;font-weight:400;color:var(--accent)}
+#comparisonList{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px}
+@media(max-width:680px){#expeditionDock{left:12px;bottom:65px;gap:10px;font-size:9px}}

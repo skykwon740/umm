@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#16161c">
+  <title>바깥 — 웹 영토</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@2.40.3/dist/galmuri.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="workspace">
+    <section class="map-panel" aria-label="웹 지구본">
+      <canvas id="worldCanvas" tabindex="0" aria-label="웹 지구본. 드래그로 회전, 휠로 확대, 방향키나 WASD로 이동합니다. 건물을 선택하면 웹사이트를 만납니다."></canvas>
+      <div class="map-tools">
+        <button id="homeButton" class="icon-button" aria-label="내 영토" title="내 영토">⌂</button>
+        <button id="personaButton" aria-label="가상 인물과 방문 기록" title="인물과 기록">윤서</button>
+        <button id="startExpedition" class="icon-button" aria-label="우연한 웹 탐방" title="우연한 웹 탐방">⚄</button>
+        <button id="archiveButton" class="icon-button" aria-label="탐방 아카이브" title="탐방 아카이브">▤</button>
+      </div>
+      <div class="world-search">
+        <form id="searchForm"><input id="searchInput" aria-label="사이트·주제·URL 찾기" placeholder="사이트 · 주제 · URL" autocomplete="off"><button aria-label="찾기" title="찾기">⌕</button></form>
+        <div id="searchResults" class="search-results" hidden></div>
+      </div>
+      <div id="mapLoading" class="map-loading" role="status"><span class="loading-indicator" aria-label="불러오는 중"></span></div>
+    </section>
+    <aside class="content-panel" aria-label="선택한 웹사이트">
+      <article id="sitePreview" class="site-preview"></article>
+      <div class="video-stage" id="videoStage" hidden>
+        <div id="playerHost"></div>
+        <button id="playVideo" class="video-cover" hidden aria-label="영상 재생"><img id="videoThumb" alt=""><span class="big-play" aria-hidden="true">▶</span></button>
+        <div class="player-error" id="playerError" hidden><p id="playerErrorText"></p><button id="errorYouTubeLink">원본 열기 ↗</button></div>
+      </div>
+      <div class="video-info">
+        <h1 id="videoTitle" hidden></h1>
+        <div class="video-bottom">
+          <span id="siteDomain"></span>
+          <div class="video-actions">
+            <button id="soundButton" class="icon-button" hidden aria-label="소리 켜기" aria-pressed="false" title="소리 켜기">♪</button>
+            <button id="saveButton" class="icon-button" aria-label="사이트 보관" aria-pressed="false" title="사이트 보관"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12v17l-6-4-6 4Z"/></svg></button>
+            <button id="collectionButton" class="icon-button" aria-label="보관함 열기" title="보관함"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4Zm10 0h6v6h-6ZM4 14h6v6H4Zm10 0h6v6h-6Z"/></svg></button>
+            <button id="reportButton" class="icon-button" aria-label="이 도메인 신고 및 제외" title="신고·제외">⊘</button>
+            <button id="sourceLink" class="icon-button" aria-label="사이트 열기" title="사이트 열기">↗</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+  <dialog id="personaDialog" class="app-dialog wide-dialog"><div class="dialog-top"><h2>가상 인물 · 검색과 방문 기록</h2><button class="icon-button" data-close aria-label="닫기">×</button></div><div id="personaList"></div></dialog>
+  <dialog id="expeditionDialog" class="app-dialog">
+    <div class="dialog-top"><h2>우연한 웹 탐방</h2><button class="icon-button" data-close aria-label="닫기">×</button></div>
+    <label for="expeditionIntention">오늘 떠오른 질문 <span class="muted">선택</span></label><input id="expeditionIntention" maxlength="300" placeholder="이번에는 무엇을 발견하게 될까">
+    <p class="muted">내 영토 → 란더노티카 관문 → 무작위 공개 페이지. 도착한 페이지를 열면 10분이 시작됩니다.</p>
+    <p class="muted">악성·피싱 평판, 위험 링크와 제외 규칙을 검사합니다. 확인되지 않는 페이지는 열지 않습니다. 질문은 추첨에 영향을 주지 않습니다.</p>
+    <button id="beginExpedition" class="primary-action">출발</button>
+  </dialog>
+  <div id="expeditionDock" hidden><span id="expeditionStage"></span><time id="expeditionClock"></time><button id="expeditionAction" hidden></button><button id="cancelExpedition" aria-label="탐방 취소">×</button></div>
+  <dialog id="summaryDialog" class="app-dialog">
+    <div class="dialog-top"><h2>내 말로 남기기</h2><button class="icon-button" data-close aria-label="닫기">×</button></div><p id="summaryTarget" class="muted"></p>
+    <label for="ownSummary">어떤 페이지였고, 무엇을 발견했나요?</label><textarea id="ownSummary" rows="6" maxlength="12000"></textarea>
+    <label for="summaryEvidence">직접 확인한 근거</label><textarea id="summaryEvidence" rows="3" maxlength="6000"></textarea>
+    <label for="summaryQuestion">아직 모르겠는 점</label><textarea id="summaryQuestion" rows="2" maxlength="3000"></textarea>
+    <button id="saveSummary" class="primary-action">아카이브에 남기기</button>
+  </dialog>
+  <dialog id="archiveDialog" class="app-dialog wide-dialog"><div class="dialog-top"><h2>탐방 아카이브</h2><button class="icon-button" data-close aria-label="닫기">×</button></div><div class="archive-actions"><button id="exportArchive">내보내기</button><button id="importArchiveButton">다른 기록 가져오기</button><input type="file" id="importArchiveFile" accept=".json" hidden></div><p class="muted">내 요약을 먼저 남긴 후 같은 페이지의 다른 기록과 비교합니다. AI 평가 요청문을 복사할 수 있습니다. 자동 AI 평가는 아직 연결되지 않았습니다.</p><div id="archiveList"></div></dialog>
+  <dialog id="comparisonDialog" class="app-dialog wide-dialog"><div class="dialog-top"><h2>같은 페이지, 다른 관찰</h2><button class="icon-button" data-close aria-label="닫기">×</button></div><div id="comparisonList"></div></dialog>
+  <dialog id="collectionDialog" class="app-dialog"><div class="dialog-top"><h2>보관함</h2><button class="icon-button" data-close aria-label="보관함 닫기">×</button></div><div id="collectionList"></div></dialog>
+  <dialog id="sharedPageDialog" class="app-dialog"><div class="dialog-top"><h2>같은 페이지의 방문 흔적</h2><button class="icon-button" data-close aria-label="닫기">×</button></div><p data-shared-url class="muted"></p><p class="muted">하나의 페이지를 함께 발견한 가상 인물들의 기록입니다. 방문 이유와 요약은 서로 덮어쓰지 않습니다.</p><div data-shared-records></div></dialog>
+  <div id="toast" role="status"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

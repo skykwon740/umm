@@ -1,0 +1,9 @@
+:root{--bg:#16161c;--fg:#f3e2b8;--muted:#87958c;--line:#38433f;--accent:#bdd5a0;--font:Galmuri11,Galmuri14,monospace;color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font:12px/1.65 var(--font);overflow:hidden}
+button,input,select{font:inherit;color:inherit}
+button{border:0;background:none;cursor:pointer}
+button:hover{color:#f6f6d6}
+a{color:inherit;text-decoration:none}
+button:focus-visible,a:focus-visible,canvas:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+[hidden]{display:none!important}
