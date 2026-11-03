@@ -1,1 +1,0 @@
-{"name":"outside-interest-world","version":"0.4.0","private":true,"type":"module","scripts":{"start":"node server.mjs","check":"node scripts/check.mjs","generate:personas":"node scripts/build-personas.mjs","test":"node tests/world.mjs && node tests/player.mjs && node tests/web-world.mjs && node tests/personas.mjs && node tests/safe-web.mjs"}}
