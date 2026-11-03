@@ -1,18 +1,16 @@
-import {state} from '../core/state.js';
-import {vec,nodeCell,DEG} from '../core/grid.js';
-import {cv,PX,view,resize,project,unproject,pose} from './renderer.js';
+import {state,requestRedraw} from '../core/state.js';
+import {vec,nodeCell} from '../core/grid.js';
+import {cv,PX,resize,project,unproject,pose} from './renderer.js';
+import {rotateCamera,zoomCamera} from './camera.js';
 import {KEYV} from './navigation.js';
-import {wikiLink} from '../ui/results.js';
-export function bindInput(navigation,keys) {
+export function bindInput(navigation,keys,onOpenDefault) {
   let drag = null;
   cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY }; cv.setPointerCapture(e.pointerId); });
   cv.addEventListener('pointermove', e => {
     if (!drag) return;
     const dx = (e.clientX - drag.x) / PX, dy = (e.clientY - drag.y) / PX;
     drag.x = e.clientX; drag.y = e.clientY;
-    view.lon = view.tLon = view.lon - dx / view.R * DEG;
-    view.lat = view.tLat = Math.max(-85, Math.min(85, view.lat + dy / view.R * DEG));
-    state.dirty = true;
+    rotateCamera(dx,dy);requestRedraw();
   });
   cv.addEventListener('pointerup', e => {
     // a click (not a drag) on a drawn tile → walk there
@@ -33,7 +31,7 @@ export function bindInput(navigation,keys) {
     // Scrolling the route panel must not also zoom the globe.
     if (e.target.closest?.('#side, #resultActions')) return;
     e.preventDefault();
-    view.tR = Math.max(25, Math.min(1400, view.tR * Math.exp(-e.deltaY * 0.0015)));
+    zoomCamera(e.deltaY);
   }, { passive: false });
   addEventListener('resize', resize);
   addEventListener('keydown', e => {
@@ -41,7 +39,7 @@ export function bindInput(navigation,keys) {
     if (e.target.closest?.('input, textarea, select, button, a, [contenteditable="true"]')) return;
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     if (KEYV[k]) { keys.add(k); e.preventDefault(); }
-    if (k === 'Enter' && !wikiLink.closest('[hidden]')) wikiLink.click();
+    if (k === 'Enter') onOpenDefault();
   });
   addEventListener('keyup', e => keys.delete(e.key.length === 1 ? e.key.toLowerCase() : e.key));
   addEventListener('blur', () => keys.clear());

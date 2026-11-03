@@ -1,5 +1,5 @@
 import {RAD, cellVec} from '../core/grid.js';
-import {state, PLAN, ROAD, save} from '../core/state.js';
+import {state,queueWalk,jumpTo,stepTo} from '../core/state.js';
 export const KEYV={ArrowUp:[0,-1],w:[0,-1],ArrowDown:[0,1],s:[0,1],ArrowLeft:[-1,0],a:[-1,0],ArrowRight:[1,0],d:[1,0]};
 const NEAR=Math.cos(6*RAD);
 export function createNavigation({project,onArrive,keys}) {
@@ -27,16 +27,10 @@ export function createNavigation({project,onArrive,keys}) {
     }); });
     return from < to ? state.route.slice(from + 1, to + 1) : state.route.slice(to, from).reverse();
   }
-  function walked(c) { state.guide[c] = 0; if (state.cells[c] === PLAN) state.cells[c] = ROAD; }
   function step(to) {
     const pa = project(cellVec(state.here)), pb = project(cellVec(to));
-    if (pa && pb && Math.abs(pb.x - pa.x) > 0.5) state.facing = pb.x > pa.x ? 1 : -1;
-    // a diagonal step can cut a corner of the route: count the tile it skipped as walked
-    const a = state.route.indexOf(state.here), b = state.route.indexOf(to);
-    if (a >= 0 && b >= 0 && Math.abs(a - b) <= 3) for (let i = Math.min(a, b); i <= Math.max(a, b); i++) walked(state.route[i]);
-    state.here = to; state.lastStep = performance.now();
-    walked(state.here);
-    save(); onArrive();
+    const facing=pa&&pb&&Math.abs(pb.x-pa.x)>.5?(pb.x>pa.x?1:-1):state.facing;
+    if(stepTo(to,facing))onArrive();
   }
   function keyStep() {
     let kx = 0, ky = 0;
@@ -55,7 +49,7 @@ export function createNavigation({project,onArrive,keys}) {
     }
     if (best >= 0) {
       while (prev.get(best) !== state.here) best = prev.get(best);
-      state.walkPath = []; step(best);
+      queueWalk([]); step(best);
     }
     return true;
   }
@@ -66,8 +60,8 @@ export function createNavigation({project,onArrive,keys}) {
     if(prev.has(c)){
       const shortest=to=>{const p=[];for(let k=to;k!==state.here;k=prev.get(k))p.unshift(k);return p;};
       const entry=state.route.includes(c)?[...prev.keys()].find(k=>state.route.includes(k)):undefined;
-      state.walkPath=entry===undefined?shortest(c):[...shortest(entry),...alongRoute(entry,c)];
-    }else{state.walkPath=[];state.here=c;save();onArrive();}
+      queueWalk(entry===undefined?shortest(c):[...shortest(entry),...alongRoute(entry,c)]);
+    }else if(jumpTo(c))onArrive();
   }
   return {step,keyStep,walkTo};
 }

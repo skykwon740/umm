@@ -1,17 +1,17 @@
-import {state, BLDG, ENTERED, save} from '../core/state.js';
+import {state,ENTERED,requestRedraw,visitCurrent} from '../core/state.js';
 import {vec, nodeCell} from '../core/grid.js';
 import {cellPx, project, pose, PX, FLAG_SPRITE} from '../world/renderer.js';
 import {wikiURL, imageSearchURL} from '../content/result-links.js';
 import {esc, showChain} from './panel.js';
 const labelsEl=document.getElementById('labels');
 const resultEl=document.getElementById('resultActions'),againEl=document.getElementById('again');
-export const wikiLink=document.getElementById('openWiki');
+const wikiLink=document.getElementById('openWiki');
 const imageLink=document.getElementById('openImages'),titleEl=document.getElementById('resultTitle');
 export function hideResults(){resultEl.hidden=againEl.hidden=true;}
 export function createResults(onRestart) {
   function arrive() {
     const n=state.nodes.find(m=>nodeCell(m)===state.here);
-    resultEl.hidden=againEl.hidden=!n;state.dirty=true;
+    resultEl.hidden=againEl.hidden=!n;requestRedraw();
     if(n){
       titleEl.textContent=n.t;
       wikiLink.href=wikiURL(n);imageLink.href=imageSearchURL(n);
@@ -22,13 +22,14 @@ export function createResults(onRestart) {
     showChain();
   }
   function enter(){
-    if(state.cells[state.here]===BLDG){state.cells[state.here]=ENTERED;save();state.dirty=true;showChain();}
+    if(visitCurrent())showChain();
   }
   for(const link of [wikiLink,imageLink]){
     link.addEventListener('click',enter);
     link.addEventListener('auxclick',event=>{if(event.button===1)enter();});
   }
-  return {arrive};
+  function openDefault(){if(!resultEl.hidden)wikiLink.click();}
+  return {arrive,openDefault};
 }
 function drawLabels() {
   const showOld = cellPx() >= 9;

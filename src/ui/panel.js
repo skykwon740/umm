@@ -4,6 +4,13 @@ export const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'
 const chainEl=document.getElementById('chain'),pctEl=document.getElementById('pct');
 const meterEl=document.querySelector('#meter i'),hintEl=document.getElementById('hint');
 export function setStatus(message='') { document.getElementById('status').textContent=message; }
+export function setJourneyBusy(busy) { document.getElementById('goBtn').disabled=busy; }
+export function bindSearch(onSearch) {
+  const input=document.getElementById('q');
+  document.getElementById('bar').addEventListener('submit',event=>{
+    event.preventDefault();input.blur();onSearch(input.value);
+  });
+}
 function showChain() {
   const row = (n, cls) => `<li class="${cls}"><span>${esc(n.t)}</span>${n.d ? `<p>${esc(n.d)}</p>` : ''}</li>`;
   const rows = state.trip.map(i => {

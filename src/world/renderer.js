@@ -1,13 +1,12 @@
 import { N, DEG, RAD, vec, cellOf, cellVec, hash, nodeCell } from '../core/grid.js';
-import { state, BLDG, ENTERED, GUIDE, GUIDE_OFF } from '../core/state.js';
+import { state, BLDG, ENTERED, GUIDE, GUIDE_OFF, requestRedraw } from '../core/state.js';
+import {camera as view,resizeCamera} from './camera.js';
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const fx = document.getElementById('fx'), fctx = fx.getContext('2d');
 const PX = 3;
 let W, H, img, buf, above;
 let CX = 0, CY = 0;                             // globe centre: middle of the area the panels leave free
-const view = { lat: 20, lon: 0, R: 60, tLat: 20, tLon: 0, tR: 60 };
 const cellPx = () => view.R * Math.PI / 2 / N;
-const walkR = () => 15 * 2 * N / Math.PI;      // zoom where a tile is ~15px
 function resize() {
   W = Math.ceil(innerWidth / PX); H = Math.ceil(innerHeight / PX);
   cv.width = W; cv.height = H;
@@ -16,8 +15,8 @@ function resize() {
   const k = PX * (devicePixelRatio || 1);
   fx.width = W * k; fx.height = H * k; fctx.setTransform(k, 0, 0, k, 0, 0); fctx.imageSmoothingEnabled = false;
   img = ctx.createImageData(W, H); buf = new Uint32Array(img.data.buffer); above = new Int32Array(W);
-  if (!resize.done) { view.R = view.tR = Math.min(W, H) * 0.36; resize.done = true; }
-  state.dirty = true;
+  resizeCamera(W,H);
+  requestRedraw();
 }
 const rgb = h => { const n = parseInt(h.slice(1), 16); return 0xff000000 | ((n & 255) << 16) | (n & 0xff00) | (n >> 16); };
 const BG = rgb('#16161c');
@@ -216,4 +215,4 @@ function unproject(sx, sy) {           // screen px → cell id (or -1)
   return cellOf(dx*co + z1*so, wy, -dx*so + z1*co);
 }
 
-export { cv, PX, W, H, view, resize, cellPx, walkR, render, pose, project, unproject, FLAG_SPRITE };
+export { cv, PX, resize, cellPx, render, pose, project, unproject, FLAG_SPRITE };

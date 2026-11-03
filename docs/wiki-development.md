@@ -1,6 +1,6 @@
 # 위키백과 탐험 개발 가이드
 
-팀 프로젝트의 기준은 원래 루트 `index.html`의 위키백과 탐험이다. 사용자 확인에 따라 PR #3은 잘못 병합된 작업으로 취급하고 개발 기준에서 제외한다. 이 탐험은 PR #3의 `dist/`, 서버, 루트 패키지 설정을 사용하지 않는다. 원격에서 해당 병합을 취소하는 작업은 이 PR의 범위가 아니다.
+팀 프로젝트의 기준은 원래 루트 `index.html`의 위키백과 탐험이다. 잘못 병합된 PR #3은 PR #5에서 제거됐다. 이 탐험은 해당 확장 앱이나 루트 패키지 설정에 의존하지 않는다.
 
 ## 실행과 확인
 
@@ -15,6 +15,7 @@ node scripts/serve-wiki.mjs
 ```sh
 node scripts/check-wiki.mjs
 node tests/wiki-explorer.mjs
+node tests/wiki-boundaries.mjs
 ```
 
 루트가 ES 모듈을 사용하므로 `index.html` 더블클릭 대신 HTTP 서버로 실행한다. `src/package.json`은 Node 검사에서 이 폴더를 ES 모듈로 읽게 하는 선언이며, 루트 `package.json`이나 외부 패키지에 의존하지 않는다. GitHub Pages처럼 정적 HTTP 호스팅도 가능하지만 이번 작업에는 배포가 포함되지 않는다.
@@ -26,10 +27,11 @@ node tests/wiki-explorer.mjs
 | 앱 시작·프레임 루프·모듈 연결 | `src/app.js` | 공통 연결부. 여러 PR에서 동시에 수정하지 않기 |
 | 관심사 검색·연결 문서 선택 | `src/content/wikipedia.js` | 검색·요약·두 단계 연결. 화면이나 좌표를 알지 않음 |
 | 위키/구글 이미지 목적지 URL | `src/content/result-links.js` | 도착한 단어 → 외부 URL만 담당 |
-| 경로 생성·순차 공개·재출발 | `src/journey.js` | 위키 연결과 탐험 상태 연결 |
-| 상태·기존 저장 형식 | `src/core/state.js` | `webglobe3` 키와 기존 필드 유지 |
+| 경로 생성·순차 공개·재출발 | `src/journey.js` | 상태 액션·위키 연결만 사용. UI·카메라는 콜백으로 요청 |
+| 상태 변경·기존 저장 형식 | `src/core/state.js` | 변경 함수의 단일 소유자. 외부에서는 중첩 배열·노드까지 읽기 전용 |
 | 구면 좌표·타일 계산 | `src/core/grid.js` | DOM에 의존하지 않는 수학 함수 |
 | 픽셀 지구·건물·캐릭터 그리기 | `src/world/renderer.js`, `styles/world.css` | 화면 투영과 픽셀 표현 |
+| 카메라 회전·확대·추적 | `src/world/camera.js` | 읽기 전용 카메라 값과 전용 변경 함수 |
 | 걷기·클릭 경로 계산 | `src/world/navigation.js` | 이동 규칙, 도착 콜백 |
 | 키보드·드래그·휠 | `src/world/input.js` | 입력을 이동/카메라 명령으로 변환 |
 | 루트 목록·발견율·힌트·상태 메시지 | `src/ui/panel.js`, `styles/panel.css` | 패널 표현 |
@@ -37,7 +39,36 @@ node tests/wiki-explorer.mjs
 | 공통 색·글꼴·기본 컨트롤 | `styles/base.css` | 공통 스타일. 화면 전용 규칙을 넣지 않기 |
 | 문서 뼈대·모듈 진입점 | `index.html` | 공통 HTML. 기능 구현 코드를 다시 넣지 않기 |
 
-순서에 의존하는 전역 스크립트 대신 `import`/`export`를 사용한다. 모듈 간 상태는 `state` 한 객체를 공유한다. `renderer`는 프레임에서 전달받은 라벨 그리기 콜백을 호출하고, `navigation`은 도착 콜백을 호출한다. 렌더러가 결과 UI를 역으로 import하지 않으므로 순환 의존이 없다.
+순서에 의존하는 전역 스크립트 대신 `import`/`export`를 사용한다. `app.js`가 실제 UI·카메라·탐험의 연결을 담당한다. `journey.js`는 UI나 렌더러를 import하지 않으며, DOM 없는 Node 테스트에서도 실행된다. 이동 입력의 기본 링크 열기도 `app.js`가 콜백으로 연결한다.
+
+## 상태 변경 규칙
+
+`state`는 새 상태를 가리키는 읽기 전용 스냅샷이다. 배열 원소·배열 메서드·중첩 노드·캐릭터 좌표까지 동결되므로 `state.here = ...`, `state.route.push(...)`, `state.nodes[0].d = ...`는 ES 모듈에서 오류가 난다. 변경 후에도 이전 스냅샷 값은 유지된다. 렌더링은 읽기 전용 배열을 직접 인덱싱하며, 매 픽셀 Proxy를 거치지 않는다.
+
+| 작업 | 사용할 함수 |
+| --- | --- |
+| 탐험 시작·단어 추가·경로 공개·완료 | `beginJourney`, `addJourneyNode`, `revealRoute`, `completeJourney` |
+| 이동 예약·다음 이동·위치 변경 | `queueWalk`, `nextWalkStep`, `stepTo`, `jumpTo` |
+| 방문 깃발·설명 보충 | `visitCurrent`, `updateNodeDescription` |
+| 캐릭터 보간·화면 갱신 | `tickAnimation`, `requestRedraw`, `consumeRedraw` |
+| 카메라 목표·회전·확대 | `focusCamera`, `rotateCamera`, `zoomCamera` (`world/camera.js`) |
+
+새 상태 변경이 필요하면 담당자가 `state.js`에 의미가 분명한 함수를 추가한다. 임의 필드를 쓰는 공통 setter는 제공하지 않는다. 공유 상태 계약을 수정하는 PR은 조율이 필요하다.
+
+## 의존 관계 검사
+
+`node scripts/check-wiki.mjs`는 구문·HTML 검사와 함께 `scripts/architecture-wiki.mjs`의 아래 경계를 검사한다.
+
+- `core` → `core`
+- `content` → `core`, `content`
+- `journey.js` → `core`, `content`
+- `world` → `core`, `world`
+- `ui` → `core`, `content`, `world`, `ui`
+- `app.js` → 각 모듈을 연결
+
+순환 참조와 경계를 넘는 import, 도메인 모듈의 직접 DOM 접근은 검사 실패다. 실행 중 상태 수정 방지는 동결된 스냅샷이 담당하며, 테스트는 실제로 금지된 쓰기가 실패하는지도 확인한다.
+
+`createJourney`는 `onStart`, `onChange`, `onFocus`, `onArrive`, `onMessage`, `onFinish`를 받는다. 각 UI 구현은 이 콜백을 `app.js`에서 연결한다. 경로 테스트는 위키 응답과 시간 진행을 주입해 실제 애니메이션 대기 없이 성공·실패·재시도·중복 출발을 검사한다.
 
 ## 팀 작업과 PR
 
