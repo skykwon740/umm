@@ -1,6 +1,36 @@
 # Current state
 
-Writer now: none
+Writer now: Codex
+
+- Current task: enforce read-only shared state and separate journey logic from UI/camera calls (user: "약점 해결해").
+- Baseline: clean `243e9d5` on the existing PR #4 branch. PR #4 is open; original explorer and `webglobe3` format remain the approved behavior.
+- Scope: state actions, camera ownership, journey callbacks, consumers, meaningful boundary/regression tests and development guide. Protect UI copy/style, Wikipedia selection rules, two result links and the user's running play session.
+- Acceptance: external modules cannot mutate nested shared state/camera; journey imports no UI/renderer and runs without a DOM; actual input → route → movement → result → saved state/restart behavior is preserved.
+- Checks: immutable-state and camera tests; deterministic DOM-free journey success/error/concurrency tests; import-layer/cycle guard proved against old violations; existing explorer tests; separate-origin browser integration smoke.
+- Recovery: revert only this feature's explicit commit; preserve browser saves and previous feature commits.
+- Added user request: publish this strengthening as a PR; check actual conflicts against teammates' latest main and explain the limits of a clean merge. Latest remote must be inspected before deciding whether PR #4 can be updated or a new PR is needed.
+- Latest explicit constraint: fetch main again immediately before publishing the PR, integrate that exact revision, preserve team edits, and record the base SHA in the PR description.
+- Strengthening source checkpoint: `51b95ee`; latest main `a9b66e1c5a29a15890fb60dd05e34387664260e3` merged without conflicts as `d12e60b`. All three required check commands passed again with the root package/PR #3 files removed.
+- Stop: verify these two fixes, preserve incoming team changes, publish the strengthening PR and report its exact merge state, then release writer. No protection bypass or claim of a perfect main. Same owner retained; no delegation needed.
+
+| Current request | Status | Evidence |
+| --- | --- | --- |
+| Enforce state changes through owned actions | PASS | State and camera snapshots are deeply immutable; domain commands own mutations. Nested writes, stale snapshot preservation and legacy-save compatibility tested |
+| Remove journey's direct UI/camera dependencies | PASS | Journey imports core/content only; app supplies callbacks. Node executes real journey flow without DOM, with injected timing/content |
+| Guard boundaries and preserve explorer behavior | PASS | 12-module layer/cycle guard, immutable-state tests, journey success/restart/error/retry/concurrency and browser integration passed |
+| Publish strengthening PR and check actual merge conflicts | UNVERIFIED | Actual integration with latest fetched main `a9b66e1` PASS, no conflicts. PR publication/read-back pending; final remote main check required before push |
+
+### Strengthening evidence — 2026-11-03
+
+- `node scripts/check-wiki.mjs`: PASS — 12 modules, syntax/imports/HTML, layer rules and cycle detection.
+- `node tests/wiki-explorer.mjs`: PASS — original cell IDs, encoded destinations, current and older `webglobe3` layouts, click/keyboard navigation.
+- `node tests/wiki-boundaries.mjs`: PASS — nested immutable state/camera, command isolation, snapshot stability, DOM-free journey success/restart/no-result/network failure/retry/concurrent start, dependency/cycle rejection.
+- Old-defect proof: the pre-fix shared-cell write did not throw (baseline assertion FAIL); the same assertion now PASS. The actual pre-fix `journey.js` is rejected by the DOM boundary guard; the current module passes. Persistent tests also reject forbidden UI imports and cycles.
+- Browser at separate origin `127.0.0.1:8767`: PASS — 자동차 → 현가장치 → 바퀴; Google link/visit action, saved flag and refresh restoration, keyboard movement, click travel with updated result title/links, restart from 바퀴, no-result feedback, camera drag/zoom. Final console errors: none.
+- Test screenshot: `.local/qa/wiki-boundaries.png`. User's live `8765` play tab/storage were not used for verification.
+- UI copy/style, root HTML, Wikipedia word selection and external URL rules unchanged. Human experience acceptance remains UNVERIFIED.
+
+## Earlier checkpoints
 
 - Goal: split the root Wikipedia explorer into team-owned modules and offer Wikipedia / Google Images links at each arrived word.
 - User correction: PR #3 was merged by mistake. Work from the original root index only. Latest user request explicitly authorized removing PR #3 from main; remote read-back confirmed this was already completed by team PR #5.
