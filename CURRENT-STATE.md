@@ -10,9 +10,10 @@ Writer now: none
 - Acceptance: original input → two-hop route → movement → arrival → either result opens with the arrived word → flag → refresh and restart work; shared ES modules have no global script-order coupling.
 - Required checks: module syntax/imports; meaningful navigation, save and URL tests; original expansion tests; real browser root flow and two outgoing destinations, keyboard/focus and narrow viewport.
 - Recovery: revert only the explicit feature commit; keep the `webglobe3` save schema and storage key.
-- Stop: implement and verify this feature, commit explicit paths, record evidence and release writer. No merge/deployment or next feature.
+- Stop: user additionally authorized delivery to main. Finish when main read-back contains the verified feature, or report a required team review if repository rules block merge. No protection changes, force push or next feature.
 - Feature checkpoint: `fd2cb81` — `refactor: split wiki explorer and add Google Images choice`.
-- AI implementation and required functional checks: PASS. User/team acceptance: UNVERIFIED. Remote PR/merge/deployment not performed.
+- Added user request (2026-11-03): push the verified changes directly to remote `main`; authorized by the user. No force push, branch-protection changes or PR #3 revert.
+- AI implementation and required functional checks: PASS. User/team experience acceptance: UNVERIFIED. Main delivery authorized by user; direct push rejected because the repository requires a PR. Normal PR delivery in progress; deployment not claimed.
 - Model: retain the current Codex session; tightly coupled refactor with observable checks, no delegation needed. Model/effort switching N/A.
 
 | Request | Status | Evidence |
@@ -21,6 +22,7 @@ Writer now: none
 | Offer Wikipedia and Google Images buttons | PASS | Chrome: 춤 → wiki article / Google selected 이미지 tab; destination updated to 다음 after actual click travel; Tab → Enter selected image link |
 | Preserve explorer behavior and saved journeys | PASS | Live Korean/English two-hop routes, click travel, keyboard down/up, drag/zoom, refresh restore, same-word restart; legacy-save and navigation tests |
 | Ignore mistakenly merged PR #3 | PASS | Copied only root index/src/styles/new scripts/test into `.local/root-only`, CommonJS parent + isolated `src/package.json`; checks and 390px iframe run passed without dist/server/root package |
+| Push verified changes to remote main | UNVERIFIED | Remote main advanced to `9497890` (team README); preserved with merge `8ec1264`. Direct push explicitly rejected by GH013: PR required. Preparing normal PR, without bypassing protection |
 
 ## Verification — 2026-11-03
 
@@ -38,4 +40,4 @@ Writer now: none
 
 ## Resume
 
-Review `fd2cb81` and `docs/wiki-development.md`; use the original root explorer only. Do not resume PR #3 as product direction. The feature is implemented and verified; no further AI implementation is pending for this scope. Next separate work item, if requested: prepare the team-review PR from this branch. Its reviewer should confirm the two-button experience and file boundaries before merge. The last page still requires the assigned teammates' decision.
+Use the original root explorer only; do not resume PR #3 as product direction. Feature source at `fd2cb81` is unchanged by the README integration. Finish the user's authorized main delivery through a normal PR, confirm remote main by read-back, and stop. If GitHub requires another person's approval, leave the PR for that review. The last page still requires the assigned teammates' decision.
