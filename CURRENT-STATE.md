@@ -1,6 +1,6 @@
 # Current state
 
-Writer now: Codex
+Writer now: none
 
 - Current task: enforce read-only shared state and separate journey logic from UI/camera calls (user: "약점 해결해").
 - Baseline: clean `243e9d5` on the existing PR #4 branch. PR #4 is open; original explorer and `webglobe3` format remain the approved behavior.
@@ -18,7 +18,7 @@ Writer now: Codex
 | Enforce state changes through owned actions | PASS | State and camera snapshots are deeply immutable; domain commands own mutations. Nested writes, stale snapshot preservation and legacy-save compatibility tested |
 | Remove journey's direct UI/camera dependencies | PASS | Journey imports core/content only; app supplies callbacks. Node executes real journey flow without DOM, with injected timing/content |
 | Guard boundaries and preserve explorer behavior | PASS | 12-module layer/cycle guard, immutable-state tests, journey success/restart/error/retry/concurrency and browser integration passed |
-| Publish strengthening PR and check actual merge conflicts | UNVERIFIED | Actual integration with latest fetched main `a9b66e1` PASS, no conflicts. PR publication/read-back pending; final remote main check required before push |
+| Publish strengthening PR and check actual merge conflicts | PASS | Latest main `a9b66e1` fetched again immediately before publication; actual integration had no conflicts. Team PR-branch sync `519672e` preserved in `21687fd` with identical before/after tree. PR #4 updated and exact remote head/base read back; external review still required |
 
 ### Strengthening evidence — 2026-11-03
 
@@ -29,6 +29,9 @@ Writer now: Codex
 - Browser at separate origin `127.0.0.1:8767`: PASS — 자동차 → 현가장치 → 바퀴; Google link/visit action, saved flag and refresh restoration, keyboard movement, click travel with updated result title/links, restart from 바퀴, no-result feedback, camera drag/zoom. Final console errors: none.
 - Test screenshot: `.local/qa/wiki-boundaries.png`. User's live `8765` play tab/storage were not used for verification.
 - UI copy/style, root HTML, Wikipedia word selection and external URL rules unchanged. Human experience acceptance remains UNVERIFIED.
+- Publication: existing PR #4 updated to "위키 탐험 모듈 분리·상태 경계 강화 및 결과 선택". Main base `a9b66e1c5a29a15890fb60dd05e34387664260e3`; first published strengthened head `21687fded60215d2530b62f6b75368166400fad2`. No force push, rule bypass or main merge.
+- GitHub requires another reviewer's approval. Local integration checks PASS; GitHub's live mergeability may recompute after a push and should be read again before an actual merge. A clean merge does not establish complete product acceptance or guarantee compatibility with future main commits.
+- AI implementation and requested PR publication: PASS. Remaining action is team review/approval. No further code work in this scope.
 
 ## Earlier checkpoints
 
@@ -87,4 +90,4 @@ Writer now: Codex
 
 ## Resume
 
-PR #3 removal from main is complete and verified; do not revert it again. Await another reviewer's approval on PR #4. When the user resumes after approval, inspect the exact PR head and required checks, perform a normal merge, read back main, and stop. No new feature implementation is pending. The last page still requires the assigned teammates' decision.
+PR #3 removal from main is complete and verified; do not revert it again. The strengthened state/camera ownership and DOM-free journey are included in PR #4, source checkpoint `51b95ee`. Latest main and the team's PR-branch synchronization were integrated without conflict. Await another reviewer's approval; before an actual merge, recheck the exact head, current main and required checks, merge normally, read back main, and stop. No new implementation is pending. The last page still requires the assigned teammates' decision.
