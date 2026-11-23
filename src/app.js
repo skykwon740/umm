@@ -42,10 +42,16 @@ function frame(time) {
   if(consumeRedraw())render(time,drawLabels);
   requestAnimationFrame(frame);
 }
-resize();initializeWalker();initializeCamera(state.walker,state.nodes.length>0);
+// 숨겨진 창에서 열리면 크기가 0이라 지구를 그릴 수 없다. 창에 크기가 생기면 그때 시작한다.
+function start() {
+  resize();initializeWalker();initializeCamera(state.walker,state.nodes.length>0);requestAnimationFrame(frame);
+}
+if(innerWidth&&innerHeight)start();
+else addEventListener('resize',function waitForSize() {
+  if(innerWidth&&innerHeight){removeEventListener('resize',waitForSize);start();}
+});
 results.arrive();
 state.trip.forEach(async index=>{
   const node=state.nodes[index];
   if(!node.d){updateNodeDescription(index,await describe(node.lang,node.t));showChain();}
 });
-requestAnimationFrame(frame);
