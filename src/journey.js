@@ -1,5 +1,6 @@
-import {state,beginJourney,addJourneyNode,previewJourneyNode,clearJourneyPreview,revealRoute,holdJourney,completeJourney} from './core/state.js';
-import {vec,ll,cellVec,cellOf,slerp,hash,DEG} from './core/grid.js';
+import {state,beginJourney,addJourneyNode,previewJourneyNode,clearJourneyPreview,revealRoute,holdJourney,completeJourney,
+  beginExtension,finishExtension} from './core/state.js';
+import {vec,ll,cellVec,cellOf,slerp,hash,nodeCell,DEG} from './core/grid.js';
 import * as wikipedia from './content/wikipedia.js';
 
 // Presentation, timing and content are explicit dependencies. No DOM or renderer.
@@ -23,26 +24,14 @@ export function createJourney({onStart,onChange,onFocus,onArrive,onMessage,onFin
       tick(start);
     });
   }
+  // 관심사 → 첫 외계인. 캐릭터는 첫 외계인 앞에서 시작한다.
   async function run(query,lang) {
     if(!query.trim()||!beginJourney())return;
     onStart();onChange();lang=lang||(/[ㄱ-ㅎ가-힣]/.test(query)?'ko':'en');
     try {
       const first=await wiki.search(lang,query);
       if(!first){onMessage(query+' 문서를 찾지 못했습니다. 다른 관심사를 입력해 주세요.');return;}
-      let current=addJourneyNode(first,lang,await wiki.describe(lang,first));
-      onFocus(current,'overview');onChange();
-      const path=[query,first];
-      for(let hop=0;hop<2;hop++) {
-        const [word]=await Promise.all([wiki.pick(lang,current.t,path),wait(500)]);
-        if(!word)break;path.push(word);
-        const [lat,lon]=ll(cellVec(hash(word)%state.cells.length));
-        const description=await wiki.describe(lang,word);
-        previewJourneyNode(word,description);onChange();await reveal(current,{lat,lon});
-        current=addJourneyNode(word,lang,description);clearJourneyPreview();onChange();
-      }
-      if(state.trip.length>1) {
-        holdJourney();onChange();onFocus(current,'walk');await wait(Math.min(3000,1300+current.t.length*120));
-      }
+      addJourneyNode(first,lang,await wiki.describe(lang,first));onChange();
     } catch {
       onMessage('경로를 불러오지 못했습니다. 연결을 확인하고 다시 출발해 주세요.');
     } finally {
@@ -51,5 +40,22 @@ export function createJourney({onStart,onChange,onFocus,onArrive,onMessage,onFin
       else onChange();
     }
   }
-  return {run};
+  // 지금 서 있는 외계인에서 고른 가족까지 길을 공개하고 새 외계인을 놓는다.
+  async function extend(word,lang,description='') {
+    const from=state.nodes.find(n=>nodeCell(n)===state.here);
+    if(!from||!word||!beginExtension())return null;
+    onStart();
+    let node=null;
+    try {
+      const [lat,lon]=ll(cellVec(hash(word)%state.cells.length));
+      previewJourneyNode(word,description);onChange();await reveal(from,{lat,lon});
+      node=addJourneyNode(word,lang,description);clearJourneyPreview();
+      holdJourney();onChange();onFocus(node,'walk');await wait(1100);
+    } finally {
+      finishExtension();onFinish();
+      const [lat,lon]=ll(state.walker);onFocus({lat,lon},'walk');onArrive();
+    }
+    return node;
+  }
+  return {run,extend};
 }

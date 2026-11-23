@@ -1,4 +1,5 @@
 import {state,load,initializeWalker,tickAnimation,nextWalkStep,requestRedraw,consumeRedraw,updateNodeDescription} from './core/state.js';
+import {nodeCell} from './core/grid.js';
 import {resize,render,project} from './world/renderer.js';
 import {initializeCamera,focusCamera,followWalker,tickCamera} from './world/camera.js';
 import {createNavigation} from './world/navigation.js';
@@ -10,19 +11,32 @@ import {showChain,setStatus,setJourneyBusy,bindSearch} from './ui/panel.js';
 
 load();
 const keys=new Set();
-const results=createResults((title,lang)=>journey.run(title,lang));
+let next=null;   // 가족을 고른 뒤 걸어가야 할 외계인
+const results=createResults({
+  onRestart:(title,lang)=>journey.run(title,lang),
+  async onChoose(from,family) {
+    const node=await journey.extend(family.t,from.lang,family.d);
+    if(node){next=node;setStatus(node.t+'에게 가는 길이 열렸어요. 파란 길을 따라 걸어가세요.');}
+  },
+});
+function arrive() {
+  results.arrive();
+  if(next&&nodeCell(next)===state.here){next=null;setStatus();}
+}
 const journey=createJourney({
-  onStart(){hideResults();setStatus();setJourneyBusy(true);},
-  onChange:showChain,onFocus:focusCamera,onArrive:results.arrive,onMessage:setStatus,
+  onStart(){hideResults();setStatus();setJourneyBusy(true);next=null;},
+  onChange:showChain,onFocus:focusCamera,onArrive:arrive,onMessage:setStatus,
   onFinish(){setJourneyBusy(false);},
 });
-const navigation=createNavigation({project,onArrive:results.arrive,keys});
-bindInput(navigation,keys,results.openDefault);bindSearch(journey.run);
+const navigation=createNavigation({project,onArrive:arrive,keys});
+// 서 있는 외계인을 클릭하면 이야기 창을 연다. 다른 곳은 원래대로 걸어간다.
+bindInput({walkTo:cell=>results.isAlienHere(cell)?results.openStory():navigation.walkTo(cell)},keys,results.openDefault);
+bindSearch(journey.run);
 function frame(time) {
   const {follow,canStep}=tickAnimation(time);
   if(follow)followWalker(follow);
   if(canStep&&!navigation.keyStep()) {
-    const next=nextWalkStep();if(next!==undefined)navigation.step(next);
+    const step=nextWalkStep();if(step!==undefined)navigation.step(step);
   }
   if(tickCamera())requestRedraw();
   if(consumeRedraw())render(time,drawLabels);

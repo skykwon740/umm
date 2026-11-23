@@ -1,0 +1,30 @@
+/* 외계인 앞 '이야기 듣기'와 펼쳐진 이야기 창. 상자 자리·크기는 results.css의 #resultActions를 따른다. */
+.result-head {display:flex;align-items:flex-start;gap:6px;}
+.result-head #resultTitle {flex:1;}
+#closeStory {padding:2px 8px;}
+#openStory {display:block;width:100%;min-height:44px;background:var(--ui);color:var(--bg);}
+#openStory:hover {background:var(--fg);border-color:var(--fg);}
+
+#resultActions.open {transform:translate(-50%,0);max-height:calc(100vh - 60px);overflow:auto;overscroll-behavior:contain;}
+#story {display:grid;gap:8px;}
+#story:focus {outline:none;}
+#storySummary {font-family:'Galmuri11',monospace;font-size:12px;line-height:1.6;}
+#embedWiki {width:100%;}
+#wikiFrame {display:block;width:100%;height:320px;border:2px solid var(--dim);background:#fff;}
+.story-source {font-family:'Galmuri11',monospace;font-size:11px;color:#9aa7ae;}
+#storyReaction:empty {display:none;}
+#story h3 {justify-self:start;font:inherit;color:var(--bg);background:var(--ui);padding:1px 5px;}
+#familyGuide {font-family:'Galmuri11',monospace;font-size:12px;line-height:1.5;color:#9aa7ae;}
+#familyGuide:empty {display:none;}
+#familyBoxes {list-style:none;display:grid;gap:6px;}
+#familyBoxes button {display:grid;gap:3px;width:100%;min-height:44px;text-align:left;color:var(--node);border-color:var(--node);}
+#familyBoxes button span {overflow-wrap:anywhere;}
+#familyBoxes button small {font-family:'Galmuri11',monospace;font-size:11px;line-height:1.4;color:#9aa7ae;}
+#storyRetry {width:100%;}
+
+/* 좁은 화면: 지구 옆 빈 곳이 좁아서 펼친 이야기는 아래에서 올라오는 판으로 띄운다 */
+@media(max-width:600px){
+  #resultActions.open {left:0;right:0;bottom:0;top:auto;width:auto;max-width:none;max-height:62vh;transform:none;z-index:3;
+    border-width:2px 0 0;}
+  #wikiFrame {height:260px;}
+}
