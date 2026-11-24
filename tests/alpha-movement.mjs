@@ -54,11 +54,12 @@ assert.deepEqual(state.cells.flatMap((t,c)=>t!==before[c]?[c]:[]).filter(c=>c!==
 const saved=data.get('webglobe3');load();assert.equal(data.get('webglobe3'),saved);assert.deepEqual(rootsOf(1),[nodeCell(state.nodes.at(-1))]);
 initializeWalker();
 
-// 결정 2: 빈 칸도 걸을 수 있다. 외계인이 목적지면 그 외계인 루트 색, 아니면 지금 루트 색. 칠해진 칸은 그대로.
+// 결정 2: 떨어진 섬(외계인)도 걸어갈 수 있다. 목적지는 예전처럼 밝혀진 칸·외계인만이고, 가는 길의 빈 칸은 칠한다.
+// 외계인이 목적지면 그 외계인 루트 색. 칠해진 칸은 그대로.
 const space=nodeCell(state.nodes.at(-1));
 const blank=Array.from({length:CELL_COUNT},(_,c)=>c).find(c=>!state.cells[c]&&cellNeighbours(c).every(n=>!state.cells[n])&&cellNeighbours(space).every(n=>n!==c));
-assert.equal(navigation.walkTo(blank),true);const toBlank=state.walkPath.slice();walkAll();
-assert.ok(toBlank.every(c=>state.cellRootSets[c].includes(1)),'Blank destination → current route colour');
+assert.equal(navigation.walkTo(blank),false,'An unrevealed blank cell is not a destination (as before the feedback round)');
+assert.deepEqual(state.walkPath,[]);
 const painted=state.cellRootSets.slice();
 assert.equal(navigation.walkTo(danceCell),true,'Another island is reachable');const toDance=state.walkPath.slice();walkAll();
 assert.equal(state.here,danceCell);
@@ -67,6 +68,11 @@ toDance.forEach(c=>{
   else assert.deepEqual(state.cellRootSets[c],[0],'Blank cells take the destination alien\'s route colour');
 });
 assert.equal(state.cells[danceCell]>=ROAD,true);
+// 돌아올 때는 방금 칠한 길을 따라간다: 새로 칠해지는 칸(평행한 길)이 없다
+const beforeBack=state.cells.slice();
+assert.equal(navigation.walkTo(space),true);walkAll();assert.equal(state.here,space);
+assert.deepEqual(state.cells.flatMap((t,c)=>t&&!beforeBack[c]?[c]:[]),[],'The way back reuses the painted road');
+navigation.walkTo(danceCell);walkAll();
 
 // 결정 5·6: 자동 이동 꺼짐 → 새 외계인을 가운데에 두고 고정. 클릭하면 걸어가며 다시 캐릭터를 추적한다.
 zoomCamera(-300);const zoom=camera.tR;
@@ -100,4 +106,4 @@ assert.equal(steps.step(0),false,'Silent before the first user input');
 globalThis.unlockAudio();
 assert.equal(steps.step(1000),true);assert.equal(steps.step(1050),false,'Fast steps are rate limited');assert.equal(steps.step(1200),true);
 steps.setEnabled(false);assert.equal(steps.step(2000),false);assert.equal(started.length,2);
-console.log('PASS: family choice reveals no road and nothing blinks, auto-move walks and paints to the alien, new journeys stay islands, blank-cell shortest paths and colours, camera lock/re-track/zoom kept, old guide data kept, footstep throttle/toggle.');
+console.log('PASS: family choice reveals no road and nothing blinks, auto-move walks and paints to the alien, new journeys stay islands, islands reachable across blank cells (blank cells are not destinations), the way back reuses painted roads, colours, camera lock/re-track/zoom kept, old guide data kept, footstep throttle/toggle.');

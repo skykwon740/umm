@@ -18,6 +18,7 @@
 #heart {width:44px;height:44px;padding:0;font-size:20px;line-height:1;}
 #heart[aria-pressed="true"] {color:#ffafbb;border-color:#ffafbb;}
 .memo-box {display:grid;gap:2px;}
+.memo-box label {font-size:12px;color:#9aa7ae;}
 #memoText {display:block;width:100%;min-height:44px;resize:vertical;font:inherit;font-size:12px;line-height:1.5;color:var(--fg);
   background:var(--bg);border:2px solid var(--dim);padding:6px;}
 #memoText:focus {border-color:var(--ui);}

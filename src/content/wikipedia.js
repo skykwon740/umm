@@ -5,11 +5,35 @@ async function api(lang, p) {
   if (d.error) throw new Error(d.error.info || '위키백과 요청이 거절되었습니다.');
   return d;
 }
+// 본문 검색은 글자 조각이 들어 있는 아무 문서나 돌려준다(없는 단어 '웹프개탐험' → '미국').
+// 제목이 입력과 맞닿는 문서만 받고, 없으면 입력 속 단어 이름의 문서가 있는지 본다.
+// 둘 다 없으면 '위키백과에 없는 단어'다 (팀 결정: 이 이름의 외계인이 없다는 안내).
 async function search(lang, q) {
-  const d = await api(lang, { action: 'query', list: 'search', srsearch: q, srlimit: 1, srnamespace: 0 });
-  return d.query.search[0]?.title;
+  const d = await api(lang, { action: 'query', list: 'search', srsearch: q, srlimit: 5, srnamespace: 0 });
+  const hit = matchTitle(q, (d.query.search ?? []).map(r => r.title));
+  if (hit) return hit;
+  const words = wordsOf(q);
+  if (!words.length) return undefined;
+  const t = await api(lang, { action: 'query', titles: words.join('|'), redirects: 1 });
+  const found = new Map();
+  for (const r of [...(t.query?.normalized ?? []), ...(t.query?.redirects ?? [])]) found.set(r.from, r.to);
+  const exists = new Set(Object.values(t.query?.pages ?? {}).filter(p => !('missing' in p) && !('invalid' in p)).map(p => p.title));
+  for (const w of words) { let title = w; while (found.has(title)) title = found.get(title); if (exists.has(title)) return title; }
+  return undefined;
 }
 const clean = s => (s || '').replace(/\s*[(（][^)）]*[)）]/g, '').replace(/\s+/g, ' ').trim();
+const squash = s => clean(s).toLowerCase().replace(/\s+/g, '');
+const wordsOf = q => [...new Set(clean(q).split(' ').filter(w => w.length >= 2))];
+// 괄호·띄어쓰기·대소문자를 빼고, 제목이 입력과 같거나 한쪽이 다른 쪽을 품거나, 입력 속 단어(2자 이상)를 품는 첫 문서
+function matchTitle(q, titles) {
+  const want = squash(q);
+  if (!want) return undefined;
+  const words = wordsOf(q).map(squash);
+  return titles.find(t => {
+    const got = squash(t);
+    return got && (got === want || want.includes(got) || got.includes(want) || words.some(w => got.includes(w)));
+  });
+}
 const firstLine = (text, max) => {
   const line = (text.match(/^.*?(다\.|\.\s)/) || [text])[0].trim();
   return line.length > max ? line.slice(0, max) + '…' : line;
@@ -87,4 +111,4 @@ async function family(lang, pool, { count = 3, exclude = [], avoid = [], random 
   return picked.concat(spare).slice(0, count);
 }
 
-export {search, describe, story, familyPool, family, isReferenceTitle};
+export {search, describe, story, familyPool, family, isReferenceTitle, matchTitle};
