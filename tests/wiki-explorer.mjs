@@ -36,14 +36,17 @@ while(state.walkPath.length)navigation.step(nextWalkStep());
 assert.equal(state.here,c);assert.equal(state.cells[b],ROAD);assert.equal(state.guide[b],0);assert.equal(state.cells[a],ENTERED);assert.ok(arrivals>0);
 save();beginJourney('New start');load();
 assert.equal(state.here,c);assert.deepEqual(state.route,[a,b,c]);assert.equal(state.nodes[0].t,'Dance');
-// Clicking again replaces travel; disconnected cells never teleport the walker.
+// Clicking again replaces travel.
 storage.set('webglobe3',JSON.stringify(native));load();
 navigation.walkTo(c);navigation.walkTo(b);assert.equal(state.walkPath.at(-1),b);
 navigation.walkTo(a);assert.deepEqual(state.walkPath,[]);
+// 팀 결정(알파 피드백 2): 섬처럼 떨어진 칸도 빈 칸을 지나 최단 경로로 걸어간다. 순간이동은 없다.
+// (이전 기대값 '연결 안 된 칸은 거부'는 이 결정으로 바뀌었다.)
 const connected=new Set([a,b,c,...cellNeighbours(a),...cellNeighbours(b),...cellNeighbours(c)]);
 const disconnected=Array.from({length:CELL_COUNT},(_,i)=>i).find(i=>!connected.has(i)),isolated=[...cells];isolated[disconnected]=ROAD;
 storage.set('webglobe3',JSON.stringify({...native,c:isolated.join('')}));load();
-assert.equal(navigation.walkTo(disconnected),false);assert.equal(state.here,a);
+assert.equal(navigation.walkTo(disconnected),true);assert.equal(state.walkPath.at(-1),disconnected);
+[a,...state.walkPath].reduce((from,to)=>{assert.ok(cellNeighbours(from).includes(to),'every step goes to a neighbour');return to;});
 assert.equal(navigation.walkTo(-1),false);assert.equal(state.here,a);
 storage.set('webglobe3','invalid json');assert.doesNotThrow(()=>load());
-console.log('PASS: all geodesic cell identities, square-save migration, destination encoding, click travel and disconnected-path rejection and visited flags.');
+console.log('PASS: all geodesic cell identities, square-save migration, destination encoding, click travel, walking to separate islands over blank cells and visited flags.');

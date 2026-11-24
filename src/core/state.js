@@ -1,4 +1,4 @@
-import {CELL_COUNT,cellVec,cellNeighbours,hash,ll,nodeCell,vec,cellOf,legacyCellVec} from './grid.js';
+import {CELL_COUNT,cellVec,hash,ll,nodeCell,vec,cellOf,legacyCellVec} from './grid.js';
 
 export const UNKNOWN=0,PLAN=1,ROAD=2,BLDG=3,ENTERED=4,GUIDE=5,GUIDE_OFF=6;
 const validCell=c=>Number.isInteger(c)&&c>=0&&c<CELL_COUNT;
@@ -22,8 +22,8 @@ function freeze(value) {
 function initialState() {
   return {
     cells:Array(CELL_COUNT).fill(UNKNOWN),guide:Array(CELL_COUNT).fill(0),cellRoots:Array(CELL_COUNT).fill(-1),cellRootSets:Array.from({length:CELL_COUNT},()=>[]),journeys:[],activeRoot:-1,
-    nodes:[],trip:[],route:[],here:-1,walkPath:[],
-    dirty:true,walker:null,facing:1,lastStep:-1e9,blinkOn:true,alienJumpAt:0,
+    nodes:[],trip:[],route:[],here:-1,walkPath:[],walkRoot:-1,
+    dirty:true,walker:null,facing:1,lastStep:-1e9,alienJumpAt:0,
     revealing:false,pending:false,upcoming:null,holding:false,busy:false,
   };
 }
@@ -65,13 +65,8 @@ export function load(storage) {
     if(!journeys.length&&trip.length)journeys=[{start:nodes[trip[0]]?.t??'',color:routeColor(0),trip}];
     const cellRootSets=Array.from({length:CELL_COUNT},(_,c)=>Array.isArray(s.cs?.[c])?s.cs[c].filter(root=>Number.isInteger(root)&&root>=0&&root<journeys.length):cellRoots[c]>=0&&cellRoots[c]<journeys.length?[cellRoots[c]]:[]);
     const activeRoot=journeys.length-1;
+    // 따로 시작한 여정은 섬으로 둔다. 예전에 이어 붙여 저장된 칸은 그대로 읽는다.
     state=freeze({...initialState(),nodes,route:migratedRoute,trip,here,guide,cells,cellRoots,cellRootSets,journeys,activeRoot});
-    let repaired=false;
-    for(let root=1;root<journeys.length;root++) {
-      const first=journeys[root].trip[0],node=nodes[first];
-      if(node&&connectRouteToNetwork(nodeCell(node),root))repaired=true;
-    }
-    if(repaired)save();
     return true;
   } catch { return false; }
 }
@@ -104,43 +99,6 @@ export function addJourneyNode(t,lang,d) {
   const trip=[...state.trip,index],journeys=state.journeys.map((j,i)=>i===state.activeRoot?{...j,start:j.start||t,trip:[...j.trip,index]}:j);
   commit({nodes,cells,cellRoots,cellRootSets,route,trip,journeys,dirty:true});save();return state.nodes[index];
 }
-export function previewJourneyNode(t,d) { commit({upcoming:{t,d},dirty:true}); }
-export function clearJourneyPreview() { commit({upcoming:null,dirty:true}); }
-export function revealRoute(cellIds) {
-  const cells=state.cells.slice(),guide=state.guide.slice(),route=state.route.slice(),cellRoots=state.cellRoots.slice(),cellRootSets=state.cellRootSets.slice();
-  for(const cell of cellIds)if(validCell(cell)&&route.at(-1)!==cell) {
-    route.push(cell);guide[cell]=1;if(!cells[cell])cells[cell]=PLAN;if(cellRoots[cell]<0&&state.activeRoot>=0)cellRoots[cell]=state.activeRoot;
-    addRootToCell(cellRootSets,cell,state.activeRoot);
-  }
-  commit({cells,guide,route,cellRoots,cellRootSets,dirty:true});
-}
-export function connectRouteToNetwork(startCell,root=state.activeRoot) {
-  if(!validCell(startCell)||root<1)return false;
-  const targets=new Set();
-  for(let c=0;c<CELL_COUNT;c++) {
-    const owners=state.cellRootSets[c]??[];
-    if(c!==startCell&&state.cells[c]>=ROAD&&(owners.some(owner=>owner<root)||owners.length===0))targets.add(c);
-  }
-  if(!targets.size)return false;
-  const previous=new Map([[startCell,-1]]),queue=[startCell];let target=-1;
-  for(let i=0;i<queue.length&&target<0;i++)for(const next of cellNeighbours(queue[i])) {
-    if(previous.has(next))continue;
-    previous.set(next,queue[i]);
-    if(targets.has(next)){target=next;break;}
-    queue.push(next);
-  }
-  if(target<0)return false;
-  const path=[];for(let c=target;c!==-1;c=previous.get(c))path.push(c);path.reverse();
-  const cells=state.cells.slice(),cellRoots=state.cellRoots.slice(),cellRootSets=state.cellRootSets.slice(),route=state.route.slice();
-  for(const cell of path.slice(1)) {
-    if(!cells[cell]||cells[cell]===PLAN)cells[cell]=ROAD;
-    if(cellRoots[cell]<0)cellRoots[cell]=root;
-    addRootToCell(cellRootSets,cell,root);
-    if(root===state.activeRoot&&route.at(-1)!==cell)route.push(cell);
-  }
-  commit({cells,cellRoots,cellRootSets,route,dirty:true});return true;
-}
-export function holdJourney() { commit({holding:true,dirty:true}); }
 export function completeJourney() {
   const start=state.route[0];
   commit({pending:false,revealing:false,busy:false,upcoming:null,holding:false,dirty:true,
@@ -167,7 +125,8 @@ export function visitCurrent() {
   if(state.cells[state.here]!==BLDG)return false;
   const cells=state.cells.slice();cells[state.here]=ENTERED;commit({cells,dirty:true});save();return true;
 }
-export function queueWalk(path) { commit({walkPath:path.filter(validCell),dirty:true}); }
+// root: 걸으면서 처음 밟는 빈 칸을 칠할 루트
+export function queueWalk(path,root=state.activeRoot) { commit({walkPath:path.filter(validCell),walkRoot:root,dirty:true}); }
 export function nextWalkStep() {
   const next=state.walkPath[0];
   if(next!==undefined)commit({walkPath:state.walkPath.slice(1)});return next;
@@ -176,13 +135,22 @@ export function jumpTo(cell) {
   if(!validCell(cell)||!state.cells[cell])return false;
   commit({here:cell,walkPath:[],dirty:true});save();return true;
 }
+// 빈 칸도 밟을 수 있다. 처음 밟은 빈 칸은 이번 걸음의 루트 색으로 칠하고, 이미 칠해진 칸은 그대로 둔다.
 export function stepTo(cell,facing=state.facing,now=performance.now()) {
-  if(!validCell(cell)||!state.cells[cell])return false;
-  const cells=state.cells.slice(),guide=state.guide.slice();
+  if(!validCell(cell))return false;
+  const cells=state.cells.slice(),guide=state.guide.slice(),patch={};
   const walked=c=>{guide[c]=0;if(cells[c]===PLAN)cells[c]=ROAD;};
   const a=state.route.indexOf(state.here),b=state.route.indexOf(cell);
   if(a>=0&&b>=0&&Math.abs(a-b)<=3)for(let i=Math.min(a,b);i<=Math.max(a,b);i++)walked(state.route[i]);
-  walked(cell);commit({cells,guide,here:cell,facing,lastStep:now,dirty:true});clearTimeout(saveTimer);saveTimer=setTimeout(save,250);return true;
+  walked(cell);
+  if(cells[cell]===UNKNOWN) {
+    cells[cell]=ROAD;const root=state.walkRoot;
+    if(root>=0&&root<state.journeys.length) {
+      const cellRoots=state.cellRoots.slice(),cellRootSets=state.cellRootSets.slice();
+      cellRoots[cell]=root;addRootToCell(cellRootSets,cell,root);Object.assign(patch,{cellRoots,cellRootSets});
+    }
+  }
+  commit({...patch,cells,guide,here:cell,facing,lastStep:now,dirty:true});clearTimeout(saveTimer);saveTimer=setTimeout(save,250);return true;
 }
 let lastAnimation=null,saveTimer;
 export function flushMovementSave() { clearTimeout(saveTimer);save(); }
@@ -190,8 +158,7 @@ export function tickAnimation(now) {
   const dt=lastAnimation===null?1000/60:Math.max(0,Math.min(50,now-lastAnimation));lastAnimation=now;
   const interval=Math.max(32,110/(1+state.walkPath.length/20));
   const alpha=1-Math.pow(.65,dt/(1000/60)*110/interval);
-  const blinkOn=Math.floor(now/450)%2===0,patch={};let follow=null;
-  if(blinkOn!==state.blinkOn){patch.blinkOn=blinkOn;if(state.route.length)patch.dirty=true;}
+  const patch={};let follow=null;
   if(state.alienJumpAt&&now-state.alienJumpAt<760)patch.dirty=true;
   const active=state.walker&&state.here>=0&&!state.revealing;
   if(active) {

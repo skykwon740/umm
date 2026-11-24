@@ -16,16 +16,22 @@ export function bindSearch(onSearch) {
     input.blur();onSearch(query);
   });
 }
+// 루트 목록의 단어를 누르면(마우스·키보드) 그 외계인에게 걸어간다
+export function bindRouteList(onPick) {
+  chainEl.addEventListener('click',event=>{
+    const button=event.target.closest?.('button[data-node]');
+    if(button)onPick(Number(button.dataset.node));
+  });
+}
 function showChain() {
-  const row = (n, cls, color) => `<li class="${cls}" style="--route-color:${color}"><span>${esc(n.t)}</span>${n.d ? `<p>${esc(n.d)}</p>` : ''}</li>`;
+  const row = (n, i, cls, color) => `<li class="${cls}" style="--route-color:${color}"><button type="button" data-node="${i}">${esc(n.t)}</button>${n.d ? `<p>${esc(n.d)}</p>` : ''}</li>`;
   const groups = (state.journeys??[]).map((journey,index) => {
     const color=journey.color||routeColor(index);
     const rows=(journey.trip??[]).map(i=>{
       const n=state.nodes[i];if(!n)return '';
       const c=nodeCell(n),cls=c===state.here?'here':state.cells[c]===ENTERED?'in':'';
-      return row(n,cls,color);
+      return row(n,i,cls,color);
     });
-    if(index===state.activeRoot&&state.upcoming)rows.push(row(state.upcoming,'drawing',color));
     return rows.length?`<section class="journey-group"><h3 style="--route-color:${color}">${esc(journey.start||'탐사')}</h3><ol>${rows.join('')}</ol></section>`:'';
   }).join('');
   chainEl.innerHTML = groups || (state.pending ? '…' : '');

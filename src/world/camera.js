@@ -1,19 +1,19 @@
-import {DEG,N,ll} from '../core/grid.js';
-export const walkRadius=15*2*N/Math.PI;
+import {DEG,ll} from '../core/grid.js';
 export let camera=Object.freeze({lat:20,lon:0,R:60,tLat:20,tLon:0,tR:60});
-let overviewRadius=60,initialized=false,tracking=true,lastTick=null;
+let initialized=false,tracking=true,lastTick=null;
 export function resumeTracking(walker) { tracking=true;followWalker(walker); }
 const publish=patch=>{camera=Object.freeze({...camera,...patch});};
+// 줌아웃 상태가 기본이다. 카메라는 스스로 확대·축소하지 않고, 휠로 바꾼 줌은 그대로 둔다.
 export function resizeCamera(width,height) {
-  overviewRadius=Math.min(width,height)*.42;
-  if(!initialized){const R=Math.min(width,height)*.36;publish({R,tR:R});initialized=true;}
+  if(!initialized){const R=Math.min(width,height)*.42;publish({R,tR:R});initialized=true;}
 }
-export function initializeCamera(walker,hasNodes) {
-  tracking=true;const [lat,lon]=ll(walker);publish({lat,lon,tLat:lat,tLon:lon,...(hasNodes?{R:walkRadius,tR:walkRadius}:{})});
+export function initializeCamera(walker) {
+  tracking=true;const [lat,lon]=ll(walker);publish({lat,lon,tLat:lat,tLon:lon});
 }
+// 'track': 지금 추적 상태 그대로, 'lock': 그 자리에 고정(캐릭터를 따라가지 않음), 그 밖: 캐릭터 추적을 다시 켠다.
 export function focusCamera(point,mode='track') {
-  if(mode!=='track')tracking=true;
-  publish({tLat:point.lat,tLon:point.lon,...(mode==='overview'?{tR:overviewRadius}:mode==='walk'?{tR:walkRadius}:{})});
+  if(mode==='lock')tracking=false;else if(mode!=='track')tracking=true;
+  publish({tLat:point.lat,tLon:point.lon});
 }
 export function followWalker(walker) { if(!tracking)return;const [lat,lon]=ll(walker);focusCamera({lat,lon}); }
 export function rotateCamera(dx,dy) {
