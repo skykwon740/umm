@@ -1,6 +1,6 @@
-import {state,ENTERED,requestRedraw,visitCurrent} from '../core/state.js';
+import {state,ENTERED,requestRedraw,visitCurrent,awakenCurrentNode} from '../core/state.js';
 import {vec, nodeCell,cellVec} from '../core/grid.js';
-import {cellPx, project, pose, PX, FLAG_SPRITE} from '../world/renderer.js';
+import {cellPx, project, pose, PX} from '../world/renderer.js';
 import {wikiURL, imageSearchURL} from '../content/result-links.js';
 import {esc, showChain, setStoryOpen} from './panel.js';
 import {createStory} from './story.js';
@@ -18,6 +18,7 @@ export function createResults({onRestart,onChoose,onFirstContact}) {
   story=createStory({
     onChoose,onFirstContact(n){showChain();onFirstContact?.(n);},
     onToggle(open){
+      if(open)awakenCurrentNode();
       resultEl.classList.toggle('open',open);openStoryEl.hidden=open;closeStoryEl.hidden=!open;
       setStoryOpen(open);requestRedraw();
       // 창 자체로 초점을 옮긴다. 버튼으로 옮기면 창을 연 Enter가 그 버튼까지 눌러 버린다
@@ -67,7 +68,7 @@ function drawLabels() {
     const p = project(vec(n.lat, n.lon)); if (!p) return;
     const entered = state.cells[nodeCell(n)] === ENTERED;
     const cls = !inTrip ? 'lb old' : entered ? 'lb in' : 'lb';
-    const f = pose(p, n), reach = f.h + (entered ? FLAG_SPRITE.length * f.fs : 0) + 3;   // clear the roof / flag
+    const f = pose(p, n), reach = f.h + 3;
     const lx = f.bx + f.ux * reach, ly = f.by + f.uy * reach;
     if (nodeCell(n) === state.here && !resultEl.hidden) { placeOpen(lx * PX, ly * PX, (p.y + cellPx() * 0.25) * PX + 8); return; }   // the button takes the label's place
     html += `<span class="${cls}" style="left:${lx*PX}px;top:${ly*PX - 4}px">${esc(n.t)}</span>`;

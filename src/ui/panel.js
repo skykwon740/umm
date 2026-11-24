@@ -1,4 +1,4 @@
-import {state, BLDG, ENTERED, ROAD} from '../core/state.js';
+import {state, BLDG, ENTERED, ROAD, routeColor} from '../core/state.js';
 import {nodeCell} from '../core/grid.js';
 export const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const chainEl=document.getElementById('chain'),pctEl=document.getElementById('pct');
@@ -17,13 +17,18 @@ export function bindSearch(onSearch) {
   });
 }
 function showChain() {
-  const row = (n, cls) => `<li class="${cls}"><span>${esc(n.t)}</span>${n.d ? `<p>${esc(n.d)}</p>` : ''}</li>`;
-  const rows = state.trip.map(i => {
-    const c = nodeCell(state.nodes[i]);
-    return row(state.nodes[i], c === state.here ? 'here' : state.cells[c] === ENTERED ? 'in' : '');
-  });
-  if (state.upcoming) rows.push(row(state.upcoming, 'drawing'));
-  chainEl.innerHTML = rows.length || state.pending ? `<ol>${rows.join('')}</ol>${state.pending && !state.upcoming && !state.holding ? '…' : ''}` : '';
+  const row = (n, cls, color) => `<li class="${cls}" style="--route-color:${color}"><span>${esc(n.t)}</span>${n.d ? `<p>${esc(n.d)}</p>` : ''}</li>`;
+  const groups = (state.journeys??[]).map((journey,index) => {
+    const color=journey.color||routeColor(index);
+    const rows=(journey.trip??[]).map(i=>{
+      const n=state.nodes[i];if(!n)return '';
+      const c=nodeCell(n),cls=c===state.here?'here':state.cells[c]===ENTERED?'in':'';
+      return row(n,cls,color);
+    });
+    if(index===state.activeRoot&&state.upcoming)rows.push(row(state.upcoming,'drawing',color));
+    return rows.length?`<section class="journey-group"><h3 style="--route-color:${color}">${esc(journey.start||'탐사')}</h3><ol>${rows.join('')}</ol></section>`:'';
+  }).join('');
+  chainEl.innerHTML = groups || (state.pending ? '…' : '');
   let n = 0; for (const c of state.cells) if (c >= ROAD) n++;
   const pct = n / state.cells.length * 100;
   pctEl.textContent = pct.toFixed(2) + '%';

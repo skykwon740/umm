@@ -1,6 +1,5 @@
-import {RAD,cellVec} from '../core/grid.js';
+import {cellNeighbours,cellVec} from '../core/grid.js';
 import {state,queueWalk,stepTo} from '../core/state.js';
-const NEAR=Math.cos(6*RAD);
 export function createNavigation({project,onArrive,onMessage=()=>{}}) {
   let topology='',drawn=[],adjacency=new Map();
   function refresh() {
@@ -10,8 +9,7 @@ export function createNavigation({project,onArrive,onMessage=()=>{}}) {
   }
   function neighbours(c) {
     if(!adjacency.has(c)) {
-      const a=cellVec(c);
-      adjacency.set(c,drawn.filter(d=>{const b=cellVec(d);return d!==c&&a.reduce((s,x,i)=>s+x*b[i],0)>NEAR;}));
+      const visible=new Set(drawn);adjacency.set(c,cellNeighbours(c).filter(d=>visible.has(d)));
     }
     return adjacency.get(c);
   }

@@ -10,12 +10,13 @@
   #controls { padding:12px; border-bottom:2px solid var(--ui); }
   #side h2 { font:inherit; color:var(--bg); background:var(--ui); padding:1px 5px; display:inline-block; margin-bottom:12px; }
   #chain ol { list-style:none; }
-  #chain li { border-left:2px solid var(--dim); padding:0 0 14px 10px; }
+  #chain li { border-left:2px solid var(--route-color,var(--dim)); padding:0 0 14px 10px; }
   #chain li:last-child { border-left-color:transparent; }
+  .journey-group { margin-bottom:18px; }
+  .journey-group h3 { color:var(--route-color); font:inherit; font-weight:bold; margin:0 0 8px; overflow-wrap:anywhere; }
   #chain li span { display:block; }
   #chain li p { margin-top:3px; color:#9aa7ae; font-family:'Galmuri11',monospace; font-size:12px; line-height:1.4; }
-  #chain li.here span { color:var(--node); }
-  #chain li.in span { color:var(--ui); }
+  #chain li.here span,#chain li.in span { color:var(--route-color); }
   #chain li.drawing { opacity:.6; }
   #hint { padding:12px; border-top:2px solid var(--ui); color:var(--fg); line-height:1.9; }
   #hint span { display:block; }
