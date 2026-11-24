@@ -1,4 +1,4 @@
-import {state, BLDG, ENTERED, routeColor} from '../core/state.js';
+import {state, ENTERED, routeColor} from '../core/state.js';
 import {nodeCell} from '../core/grid.js';
 export const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const chainEl=document.getElementById('chain'),hintEl=document.getElementById('hint');
@@ -43,13 +43,11 @@ function showHint() {
   const onNode = state.nodes.some(n => nodeCell(n) === state.here);
   const look = [['드래그', '회전'], ['휠', '확대']];
   let items;
-  if (state.holding) items = [['', '새 외계인 발견']];
-  else if (state.pending) items = [['', '루트 찾는 중…']];
+  if (state.pending) items = [['', '루트 찾는 중…']];
   else if (state.here < 0) items = [['클릭', '관심사 입력 후 출발'], ...look];
-  else if (onNode && storyOpen) items = [['', '가족 후보를 고르면 그 외계인까지 길이 열림'], ['Esc', '이야기 닫기']];
-  else if (onNode) items = [['클릭', '외계인을 눌러 이야기 듣기'], ['클릭', '길이나 외계인으로 이동']];
-  else if (state.cells[state.route.at(-1)] === BLDG) items = [['클릭', '파란 길을 따라 다음 외계인에게'], ...look];
-  else items = [['클릭', '길이나 외계인으로 이동'], ...look];
+  else if (onNode && storyOpen) items = [['Esc', '닫기']];
+  else if (onNode) items = [];
+  else items = [...look];
   hintEl.innerHTML = items.map(([k, t]) => `<span>${k ? `<kbd>${k}</kbd>` : ''}${t}</span>`).join('');
 }
 
