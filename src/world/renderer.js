@@ -103,7 +103,7 @@ function render(now, drawLabels) {
       const type = state.guide[c] && state.cells[c] < BLDG ? (state.blinkOn ? GUIDE : GUIDE_OFF) : state.cells[c];
       let lv = dx*L[0] + dy*L[1] + z*L[2];
       lv = lv > 0.75 ? 3 : lv > 0.45 ? 2 : lv > 0.1 ? 1 : 0;
-      const rootType=type===PLAN||type===ROAD||type===ENTERED||type===GUIDE||type===GUIDE_OFF;
+      const rootType=type===PLAN||type===ROAD||type===BLDG||type===ENTERED||type===GUIDE||type===GUIDE_OFF;
       const roots=state.cellRootSets?.[c]??[],variant=Math.floor((x+y+c*3)/5);
       const pal=rootType&&roots.length?colorPalette(colorForCell(c,variant)):PAL[type];
       const k = y*W + x;
