@@ -1,6 +1,7 @@
 import {state,beginJourney,addJourneyNode,completeJourney,beginExtension,finishExtension} from './core/state.js';
 import {ll,nodeCell} from './core/grid.js';
 import * as wikipedia from './content/wikipedia.js';
+import {NOT_FOUND_MESSAGE} from './core/messages.js';
 
 // Presentation, timing and content are explicit dependencies. No DOM or renderer.
 export function createJourney({onStart,onChange,onFocus,onArrive,onMessage,onFinish,wiki=wikipedia}) {
@@ -10,7 +11,7 @@ export function createJourney({onStart,onChange,onFocus,onArrive,onMessage,onFin
     onStart();onChange();lang=lang||(/[ㄱ-ㅎ가-힣]/.test(query)?'ko':'en');
     try {
       const first=await wiki.search(lang,query);
-      if(!first){onMessage(query+' 문서를 찾지 못했습니다. 다른 관심사를 입력해 주세요.');return;}
+      if(!first){onMessage(NOT_FOUND_MESSAGE);return;}
       addJourneyNode(first,lang,await wiki.describe(lang,first));onChange();
     } catch {
       onMessage('경로를 불러오지 못했습니다. 연결을 확인하고 다시 출발해 주세요.');

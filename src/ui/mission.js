@@ -7,7 +7,6 @@ import {createRadio} from './radio.js';
 import {createTutorial} from './tutorial.js';
 import {createEnding} from './ending.js';
 import {createWanderer} from './wanderer.js';
-import {createBriefing} from './briefing.js';
 import {createGauge} from './gauge.js';
 import {createCollection} from './collection.js';
 
@@ -17,7 +16,6 @@ export function createMission({startJourney}) {
   const radio=createRadio();
   const gauge=createGauge();
   createCollection();
-  const briefing=createBriefing();
   const ending=createEnding({onReplayTutorial:()=>begin()});
   const tutorial=createTutorial({radio,onFinish(first){emit('tutorialDone');announce(first?-1:undefined);}});
 
@@ -31,23 +29,23 @@ export function createMission({startJourney}) {
   }
   function meet(t,lang){if(markMet(t,lang))announce();}
 
-  // 만난 외계인 = 처음 이야기를 들은 외계인 (C 트랙의 첫 접촉, 문서당 1회)
+  // 만난 외계인 = 정보창을 처음 연(첫 접촉) 외계인 (C 트랙의 첫 접촉, 문서당 1회)
   on('contact',node=>{if(node)meet(node.t,node.lang);});
 
   const wanderer=createWanderer({
     demo,
-    canAppear:()=>progress().tutorial&&!tutorial.isRunning()&&!briefing.isOpen()&&!state.busy&&!radio.isBusy(),
+    canAppear:()=>progress().tutorial&&!tutorial.isRunning()&&!state.busy&&!radio.isBusy(),
     onSpotted:()=>radio.notice(['떠돌이 외계인 포착. 접촉은 자유다.'],2200),
     onMeet:(t,lang)=>{markWanderer(t,lang);meet(t,lang);},
     onFollow:(t,lang)=>{const q=document.getElementById('q');if(q)q.value=t;startJourney(t,lang);},
   });
 
   function tick(time){radio.tick();wanderer.tick(time);}
-  // 브리핑(계급 설명) → 튜토리얼
-  async function begin() {
-    if(tutorial.isRunning()||briefing.isOpen()||state.busy)return;
-    await briefing.open();tutorial.start();
+  // 임무 브리핑 창 없이 바로 무전 대사로 시작한다 (팀 결정). briefing.js는 쓰지 않는다
+  function begin() {
+    if(tutorial.isRunning()||state.busy)return;
+    tutorial.start();
   }
-  if(!progress().tutorial)setTimeout(begin,400);   // 처음 접속 → 브리핑 → 튜토리얼
+  if(!progress().tutorial)setTimeout(begin,400);   // 처음 접속 → 튜토리얼
   return {tick,openReport:ending.open,startTutorial:begin,spawnWanderer:wanderer.appear};
 }

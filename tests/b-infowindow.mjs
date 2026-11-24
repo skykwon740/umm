@@ -105,7 +105,7 @@ $('closeStory').fire('click');assert.equal($('resultActions').hidden,true);
 arrive();arrive();assert.equal($('resultActions').hidden,true,'closed window stays closed');
 assert.equal(results.isAlienHere(core.state.here),true);results.openStory();
 assert.equal($('resultActions').hidden,false);assert.deepEqual(contacts,['농구'],'first contact fires once per document');
-await settle();assert.equal($('familyGuide').textContent,'다시 만나서 가족 후보를 새로 뽑았어요.');
+await settle();assert.equal($('familyGuide').textContent,'','다시 만나도 안내 문구는 없다');
 
 // 5) ↻: 지금 보이는 후보를 피해 다시 뽑는다
 for(let i=0;i<6;i++){

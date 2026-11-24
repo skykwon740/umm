@@ -29,7 +29,7 @@
 <div id="resultActions" role="group" aria-label="도착한 외계인" hidden>
   <div class="result-head">
     <strong id="resultTitle"></strong>
-    <button id="closeStory" type="button" aria-label="이야기 닫기">닫기</button>
+    <button id="closeStory" type="button" aria-label="정보창 닫기">닫기</button>
   </div>
   <section id="story" aria-labelledby="resultTitle" tabindex="-1" hidden>
     <p id="storySummary" aria-live="polite"></p>
@@ -64,10 +64,9 @@
 <aside id="side">
   <div id="controls">
     <form id="bar">
-      <input id="q" aria-label="탐험을 시작할 관심사" placeholder="관심사" autocomplete="off" maxlength="100" aria-describedby="searchHelp searchCount">
+      <input id="q" aria-label="탐험을 시작할 관심사" placeholder="관심사" autocomplete="off" maxlength="100" aria-describedby="searchCount">
       <button id="goBtn">출발</button>
     </form>
-    <p id="searchHelp">관심사를 1~100자로 입력해 주세요.</p>
     <p id="searchCount">0/100</p>
     <div id="toggles">
       <label><input id="autoMove" type="checkbox" checked> 자동 이동</label>

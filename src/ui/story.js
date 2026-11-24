@@ -6,7 +6,7 @@ const $=id=>document.getElementById(id);
 const storyEl=$('story'),summaryEl=$('storySummary'),guideEl=$('familyGuide'),listEl=$('familyBoxes');
 const titleEl=$('familyTitle'),rerollEl=$('familyReroll'),retryEl=$('storyRetry');
 const keyOf=n=>n.lang+':'+n.t;
-const FAMILY_FAILED='가족 후보를 불러오지 못했어요. 연결을 확인하고 다시 불러와 주세요.';
+const FAMILY_FAILED='가족을 불러오지 못했어요. 연결을 확인하고 다시 불러와 주세요.';
 
 export function createStory({onChoose,onFirstContact,onToggle}) {
   const stories=new Map(),pools=new Map(),shown=new Map();
@@ -22,9 +22,7 @@ export function createStory({onChoose,onFirstContact,onToggle}) {
     return family(n.lang,pool,{exclude,avoid:shown.get(key)??[]});   // avoid: 지금 보이는 후보
   }
   function familyGuide(count,again) {
-    if(!count)return '이 문서에서는 이어질 가족을 찾지 못했어요. 다른 외계인에게 가 보거나 새 관심사로 출발해 보세요.';
-    if(count<3)return `가족 후보가 ${count}명뿐이에요.`;
-    return again?'다시 만나서 가족 후보를 새로 뽑았어요.':'';
+    return count?'':'이 문서에서는 이어질 가족을 찾지 못했어요.';
   }
   function showFamily(from,list,again) {
     listEl.replaceChildren(...list.map((c,i)=>{
@@ -59,8 +57,8 @@ export function createStory({onChoose,onFirstContact,onToggle}) {
     summaryEl.textContent='이야기를 듣는 중…';
     const summary=cached(stories,key,()=>fetchStory(n.lang,n.t)).then(s=>{
       if(mine!==token)return;
-      summaryEl.textContent=!s?'위키백과에서 이 문서를 찾지 못했어요. 원문 링크로 확인해 보세요.'
-        :s.summary||'요약이 없는 문서예요. 원문이나 창 안에서 보기로 읽어 보세요.';
+      summaryEl.textContent=!s?'위키백과에서 이 문서를 찾지 못했어요.'
+        :s.summary||'요약이 없는 문서예요.';
     },()=>{if(mine===token){summaryEl.textContent='이야기를 불러오지 못했어요.';retryEl.hidden=false;}});
     await Promise.all([summary,loadFamily(n,again)]);
   }

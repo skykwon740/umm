@@ -34,7 +34,7 @@ const results=createResults({
   async onChoose(from,family) {
     const node=await journey.extend(family.t,from.lang,family.d);
     if(!node)return;
-    next=node;setStatus(node.t+'에게 가는 길이 열렸어요. 파란 길을 따라 걸어가세요.');
+    next=node;
     navigation.approach(node,autoMove.checked);
   },
   onFirstContact:node=>emit('contact',node),
