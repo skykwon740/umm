@@ -57,17 +57,6 @@ const PAL = [
   ['#c4c8cc', '#dcdfe2', '#f2f3f4', '#ffffff'],   // route guide, blinking over whatever is below
   ['#5a6068', '#6e747c', '#868c94', '#a0a6ae'],   // route guide, off beat
 ].map(p => p.map(rgb));
-// swallowtail flag, base of the pole at the bottom-left
-const FLAG_SPRITE = [
-  '#.#######',
-  '#.#####..',
-  '#.####...',
-  '#.#####..',
-  '#.#######',
-  '#........',
-  '#........',
-  '#........',
-];
 const L = (() => { const v = [-0.45, 0.55, 0.7], m = Math.hypot(...v); return v.map(x => x / m); })();
 
 function makeSprite(rows, colors, ring) {
@@ -79,7 +68,6 @@ function makeSprite(rows, colors, ring) {
   each((x, y, ch) => { const c = colors[ch]; g.fillStyle = typeof c === 'function' ? c(x, y) : c; g.fillRect(x, y, 1, 1); });
   return c;
 }
-const FLAG_IMG = makeSprite(FLAG_SPRITE, { '#': '#6fdcff' }, '#16161c');
 
 function render(now, drawLabels) {
   const cx = CX, cy = CY, R = view.R;
@@ -117,7 +105,7 @@ function render(now, drawLabels) {
   ctx.putImageData(img, 0, 0);
   drawLabels();
 }
-// Aliens and flags point out from the globe's centre, like ticks around a dial.
+// Aliens point out from the globe's centre, like ticks around a dial.
 function pose(p, n) {
   const px=cellPx(),s=px>=28?2:1,cell=nodeCell(n),color=colorForCell(cell);
   const sprite=n.awakened?awakeAlien(color):ALIEN_IDLE;
@@ -125,8 +113,7 @@ function pose(p, n) {
   const ax = sx, ay = sy * 0.8 - p.z * 0.6, m = Math.hypot(ax, ay);
   const ux = m < 1e-3 ? 0 : ax / m, uy = m < 1e-3 ? -1 : ay / m;
   const off = -px * 0.25;              // foot of the building sits inside its tile
-  // far away the flag shrinks with the building so it doesn't outweigh it
-  return { s, fs: px >= 10 ? s : 0.6, ux, uy, sprite, h: sprite.height * s, bx: p.x + ux * off, by: p.y + uy * off };
+  return { s, ux, uy, sprite, h: sprite.height * s, bx: p.x + ux * off, by: p.y + uy * off };
 }
 // sprites go on a finer layer so their pixel blocks rotate cleanly
 function place(img, x, y, ux, uy, s, ax) {
@@ -143,11 +130,9 @@ function drawAliens(now) {
   }
   list.sort((a, b) => a[0].z - b[0].z);   // limb first, so the ones facing the camera overlap them
   for (const [p, n] of list) {
-    const { s, fs, ux, uy, sprite, h, bx, by } = pose(p, n);
+    const { s, ux, uy, sprite, h, bx, by } = pose(p, n);
     const jumping=state.alienJumpAt&&now-state.alienJumpAt<760?Math.abs(Math.sin((now-state.alienJumpAt)/760*Math.PI))*cellPx()*.33:0;
     place(sprite,bx,by-jumping,ux,uy,s,sprite.width/2);
-    const roof = h - 2 * s;   // planted where the antenna meets the roof
-    if (state.cells[nodeCell(n)] === ENTERED) place(FLAG_IMG, bx + ux * roof, by + uy * roof, ux, uy, fs, 1);
   }
 }
 function drawSprite(now) {
@@ -175,4 +160,4 @@ function unproject(sx, sy) {           // screen px → cell id (or -1)
   return cellOf(dx*co + z1*so, wy, -dx*so + z1*co);
 }
 
-export { cv, PX, resize, cellPx, render, pose, project, unproject, FLAG_SPRITE };
+export { cv, PX, resize, cellPx, render, pose, project, unproject };
