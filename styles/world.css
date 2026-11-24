@@ -6,3 +6,4 @@
     background:var(--bg); color:var(--node); font-family:'Galmuri11',monospace; font-size:12px; }
   .lb.in { color:var(--ui); }
   .lb.old { color:var(--dim); }
+.lb.destination {color:var(--ui);border:1px solid var(--ui);}

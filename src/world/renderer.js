@@ -8,6 +8,7 @@ let W, H, img, buf, above;
 let CX = 0, CY = 0;                             // globe centre: middle of the area the panels leave free
 const cellPx = () => view.R * Math.PI / 2 / N;
 function resize() {
+  if (!innerWidth || !innerHeight) return;      // hidden window: wait for the resize event that gives it a size
   W = Math.ceil(innerWidth / PX); H = Math.ceil(innerHeight / PX);
   cv.width = W; cv.height = H;
   CX = (W - document.getElementById('side').offsetWidth / PX) / 2;

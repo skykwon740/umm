@@ -86,6 +86,14 @@ export function completeJourney() {
     ...(start===undefined?{}:{here:start,walker:cellVec(start),facing:1})});
   if(start!==undefined)save();return start!==undefined;
 }
+// 고른 가족까지 길을 이어 붙인다. 지금까지의 경로와 캐릭터 위치는 그대로 둔다.
+export function beginExtension() {
+  if(state.busy||state.here<0)return false;
+  commit({walkPath:[],revealing:true,pending:true,busy:true,dirty:true});return true;
+}
+export function finishExtension() {
+  commit({pending:false,revealing:false,busy:false,upcoming:null,holding:false,dirty:true});save();
+}
 export function updateNodeDescription(index,d) {
   if(!state.nodes[index])return;
   const nodes=state.nodes.slice();nodes[index]={...nodes[index],d};commit({nodes,dirty:true});save();
@@ -94,7 +102,7 @@ export function visitCurrent() {
   if(state.cells[state.here]!==BLDG)return false;
   const cells=state.cells.slice();cells[state.here]=ENTERED;commit({cells,dirty:true});save();return true;
 }
-export function queueWalk(path) { commit({walkPath:path.filter(validCell)}); }
+export function queueWalk(path) { commit({walkPath:path.filter(validCell),dirty:true}); }
 export function nextWalkStep() {
   const next=state.walkPath[0];
   if(next!==undefined)commit({walkPath:state.walkPath.slice(1)});return next;
@@ -109,20 +117,25 @@ export function stepTo(cell,facing=state.facing,now=performance.now()) {
   const walked=c=>{guide[c]=0;if(cells[c]===PLAN)cells[c]=ROAD;};
   const a=state.route.indexOf(state.here),b=state.route.indexOf(cell);
   if(a>=0&&b>=0&&Math.abs(a-b)<=3)for(let i=Math.min(a,b);i<=Math.max(a,b);i++)walked(state.route[i]);
-  walked(cell);commit({cells,guide,here:cell,facing,lastStep:now,dirty:true});save();return true;
+  walked(cell);commit({cells,guide,here:cell,facing,lastStep:now,dirty:true});clearTimeout(saveTimer);saveTimer=setTimeout(save,250);return true;
 }
+let lastAnimation=null,saveTimer;
+export function flushMovementSave() { clearTimeout(saveTimer);save(); }
 export function tickAnimation(now) {
+  const dt=lastAnimation===null?1000/60:Math.max(0,Math.min(50,now-lastAnimation));lastAnimation=now;
+  const interval=Math.max(32,110/(1+state.walkPath.length/20));
+  const alpha=1-Math.pow(.65,dt/(1000/60)*110/interval);
   const blinkOn=Math.floor(now/450)%2===0,patch={};let follow=null;
   if(blinkOn!==state.blinkOn){patch.blinkOn=blinkOn;if(state.route.length)patch.dirty=true;}
   const active=state.walker&&state.here>=0&&!state.revealing;
   if(active) {
     const target=cellVec(state.here);
     if(Math.hypot(...target.map((x,i)=>x-state.walker[i]))>1e-4) {
-      const moved=state.walker.map((x,i)=>x+(target[i]-x)*.35),m=Math.hypot(...moved);
+      const moved=state.walker.map((x,i)=>x+(target[i]-x)*alpha),m=Math.hypot(...moved);
       patch.walker=moved.map(x=>x/m);patch.dirty=true;follow=patch.walker;
     }
     if(now-state.lastStep<300)patch.dirty=true;
   }
   if(Object.keys(patch).length)commit(patch);
-  return {follow,canStep:Boolean(active&&now-state.lastStep>110)};
+  return {follow,canStep:Boolean(active&&now-state.lastStep>interval)};
 }

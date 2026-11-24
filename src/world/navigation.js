@@ -1,67 +1,42 @@
-import {RAD, cellVec} from '../core/grid.js';
-import {state,queueWalk,jumpTo,stepTo} from '../core/state.js';
-export const KEYV={ArrowUp:[0,-1],w:[0,-1],ArrowDown:[0,1],s:[0,1],ArrowLeft:[-1,0],a:[-1,0],ArrowRight:[1,0],d:[1,0]};
+import {RAD,cellVec} from '../core/grid.js';
+import {state,queueWalk,stepTo} from '../core/state.js';
 const NEAR=Math.cos(6*RAD);
-export function createNavigation({project,onArrive,keys}) {
-  function neighbours(c, drawn) {
-    const a = cellVec(c);
-    return drawn.filter(d => { if (d === c) return false; const b = cellVec(d); return a[0]*b[0] + a[1]*b[1] + a[2]*b[2] > NEAR; });
+export function createNavigation({project,onArrive,onMessage=()=>{}}) {
+  let topology='',drawn=[],adjacency=new Map();
+  function refresh() {
+    const cells=[];state.cells.forEach((t,c)=>{if(t)cells.push(c);});
+    const signature=cells.join(',');
+    if(signature!==topology){topology=signature;drawn=cells;adjacency.clear();}
   }
-  const drawnCells = () => { const out = []; state.cells.forEach((t, c) => { if (t) out.push(c); }); return out; };
-  // breadth-first from `here`, up to `depth` steps → Map(cell → previous cell)
-  function explore(depth) {
-    const drawn = drawnCells(), prev = new Map([[state.here, -1]]);
-    let edge = [state.here];
-    for (let d = 0; d < depth && edge.length; d++) {
-      const next = [];
-      for (const c of edge) for (const n of neighbours(c, drawn)) if (!prev.has(n)) { prev.set(n, c); next.push(n); }
-      edge = next;
+  function neighbours(c) {
+    if(!adjacency.has(c)) {
+      const a=cellVec(c);
+      adjacency.set(c,drawn.filter(d=>{const b=cellVec(d);return d!==c&&a.reduce((s,x,i)=>s+x*b[i],0)>NEAR;}));
     }
-    return { prev, edge };
-  }
-  // route tiles from a (exclusive) to b, forwards or backwards; a tile can appear twice if the route crosses itself
-  function alongRoute(a, b) {
-    let from = -1, to = -1;
-    state.route.forEach((x, i) => { if (x === a) state.route.forEach((y, j) => {
-      if (y === b && (from < 0 || Math.abs(i - j) < Math.abs(from - to))) { from = i; to = j; }
-    }); });
-    return from < to ? state.route.slice(from + 1, to + 1) : state.route.slice(to, from).reverse();
+    return adjacency.get(c);
   }
   function step(to) {
-    const pa = project(cellVec(state.here)), pb = project(cellVec(to));
+    const pa=project(cellVec(state.here)),pb=project(cellVec(to));
     const facing=pa&&pb&&Math.abs(pb.x-pa.x)>.5?(pb.x>pa.x?1:-1):state.facing;
     if(stepTo(to,facing))onArrive();
   }
-  function keyStep() {
-    let kx = 0, ky = 0;
-    for (const k of keys) if (KEYV[k]) { kx += KEYV[k][0]; ky += KEYV[k][1]; }
-    if (!kx && !ky) return false;
-    const p = project(cellVec(state.here)); if (!p) return false;
-    // compare with the general heading a few tiles ahead, so diagonal zigzags still follow one key
-    const { prev } = explore(4);
-    let best = -1, bestDot = 0.25;
-    for (const c of prev.keys()) {
-      if (c === state.here) continue;
-      const q = project(cellVec(c)); if (!q) continue;
-      const vx = q.x - p.x, vy = q.y - p.y, m = Math.hypot(vx, vy) * Math.hypot(kx, ky) || 1;
-      const d = (vx*kx + vy*ky) / m;
-      if (d > bestDot) { bestDot = d; best = c; }
-    }
-    if (best >= 0) {
-      while (prev.get(best) !== state.here) best = prev.get(best);
-      queueWalk([]); step(best);
-    }
-    return true;
-  }
-
   function walkTo(c) {
-    if(c<0||!state.cells[c]||c===state.here)return;
-    const {prev}=explore(state.cells.length);
-    if(prev.has(c)){
-      const shortest=to=>{const p=[];for(let k=to;k!==state.here;k=prev.get(k))p.unshift(k);return p;};
-      const entry=state.route.includes(c)?[...prev.keys()].find(k=>state.route.includes(k)):undefined;
-      queueWalk(entry===undefined?shortest(c):[...shortest(entry),...alongRoute(entry,c)]);
-    }else if(jumpTo(c))onArrive();
+    if(state.busy||state.here<0)return false;
+    if(c===state.here){queueWalk([]);return true;}
+    if(c<0||!state.cells[c]){onMessage('밝혀진 길이나 건물을 클릭해 주세요.');return false;}
+    refresh();
+    const prev=new Map([[state.here,-1]]),queue=[state.here];
+    for(let i=0;i<queue.length&&!prev.has(c);i++)for(const n of neighbours(queue[i])) {
+      if(!prev.has(n)){prev.set(n,queue[i]);queue.push(n);}
+    }
+    if(!prev.has(c)){onMessage('현재 위치와 연결된 길을 선택해 주세요.');return false;}
+    // Preserve the drawn route order when both endpoints belong to this journey.
+    let best=null;
+    state.route.forEach((a,i)=>{if(a===state.here)state.route.forEach((b,j)=>{
+      if(b===c&&(!best||Math.abs(j-i)<best.length))best=i<j?state.route.slice(i+1,j+1):state.route.slice(j,i).reverse();
+    });});
+    const path=[];for(let k=c;k!==state.here;k=prev.get(k))path.push(k);
+    queueWalk(best??path.reverse());onMessage('선택한 목적지로 이동합니다.');return true;
   }
-  return {step,keyStep,walkTo};
+  return {step,walkTo};
 }
