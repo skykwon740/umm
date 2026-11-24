@@ -1,0 +1,116 @@
+/* D 트랙: 무전 창 · 스포트라이트 · 진행도 칩 · 결과 화면 · 떠돌이 외계인 */
+
+/* spotlight */
+.d-shade {position:fixed;inset:0;z-index:20;pointer-events:none;}
+.d-block {position:fixed;pointer-events:auto;background:transparent;}
+.d-hole {position:fixed;box-shadow:0 0 0 200vmax rgba(6,6,12,.72);transition:all .18s steps(4);}
+.d-hole.on {outline:2px dashed var(--ui);outline-offset:2px;animation:d-pulse 1s steps(2) infinite;}
+.d-shade.clear .d-hole {box-shadow:none;outline:none;}
+@keyframes d-pulse {50%{outline-color:var(--fg);}}
+
+/* radio window */
+.d-radio {position:fixed;z-index:30;left:50%;bottom:20px;transform:translateX(-50%);
+  width:min(560px,calc(100vw - 32px));min-height:104px;padding:14px 52px 30px 86px;cursor:pointer;
+  background:var(--bg);border:2px solid var(--ui);box-shadow:4px 4px 0 #0b0b10, inset 0 0 0 2px #22222b;}
+.d-radio::before {content:'';position:absolute;left:14px;top:14px;width:56px;height:56px;
+  background:repeating-linear-gradient(0deg,#22222b 0 2px,transparent 2px 4px),#1d2a30;border:2px solid var(--ui);}
+.d-radio::after {content:'';position:absolute;left:30px;top:30px;width:24px;height:24px;background:var(--ui);
+  clip-path:polygon(0 40%,30% 40%,30% 0,70% 0,70% 40%,100% 40%,100% 60%,70% 60%,70% 100%,30% 100%,30% 60%,0 60%);
+  animation:d-blink 1.2s steps(2) infinite;}
+@keyframes d-blink {50%{opacity:.35;}}
+.d-label {color:var(--node);margin-right:8px;}
+.d-step {position:absolute;right:12px;top:10px;color:var(--ui);font-family:'Galmuri11',monospace;font-size:12px;}
+.d-text {display:inline;line-height:1.7;}
+.d-more {position:absolute;right:16px;bottom:8px;color:var(--ui);animation:d-blink .8s steps(2) infinite;}
+.d-more[hidden] {display:none;}
+.d-skip {position:absolute;left:86px;bottom:6px;border:0;padding:0;background:none;color:#9aa7ae;
+  font-family:'Galmuri11',monospace;font-size:12px;text-decoration:underline;}
+.d-skip:hover {background:none;color:var(--fg);}
+.d-radio.d-notice {cursor:default;min-height:88px;padding-bottom:16px;}
+@media(max-width:600px){.d-radio {padding-left:16px;}.d-radio::before,.d-radio::after {display:none;}.d-skip {left:16px;}}
+
+/* progress chip in the top bar */
+.d-chip {display:flex;gap:8px;align-items:center;position:relative;padding:2px 8px 4px;
+  font-family:'Galmuri11',monospace;font-size:12px;white-space:nowrap;}
+.d-chip b {font-weight:normal;color:var(--node);}
+.d-chip span {color:var(--fg);}
+.d-chip i {position:absolute;left:0;bottom:0;height:2px;width:var(--r);background:var(--node);}
+
+/* side panel tools */
+.d-tools {display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 12px;border-top:2px solid var(--ui);}
+.d-tools button {font-size:12px;padding:6px;}
+.d-tools .d-replay {border-color:var(--dim);color:#9aa7ae;}
+
+/* report */
+.d-report {position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:16px;
+  background:rgba(6,6,12,.78);}
+.d-card {width:min(460px,100%);max-height:calc(100vh - 32px);overflow:auto;padding:18px;
+  background:var(--bg);border:2px solid var(--ui);box-shadow:6px 6px 0 #0b0b10;}
+.d-card h2 {font:inherit;display:inline-block;color:var(--bg);background:var(--ui);padding:1px 6px;margin-bottom:14px;}
+.d-hero {display:flex;gap:16px;align-items:center;margin-bottom:14px;}
+.d-hero canvas {image-rendering:pixelated;flex:none;animation:d-bob 1.6s steps(2) infinite;}
+@keyframes d-bob {50%{transform:translateY(-3px);}}
+.d-hero small {color:#9aa7ae;font-family:'Galmuri11',monospace;font-size:12px;}
+.d-hero strong {display:block;font-size:22px;color:var(--node);font-weight:normal;margin:2px 0 6px;}
+.d-hero p {color:var(--fg);line-height:1.5;font-family:'Galmuri11',monospace;font-size:12px;}
+.d-stats {display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px;}
+.d-stats div {border:2px solid var(--dim);padding:6px;text-align:center;}
+.d-stats dt {color:#9aa7ae;font-family:'Galmuri11',monospace;font-size:11px;}
+.d-stats dd {color:var(--ui);margin-top:2px;}
+.d-next {line-height:1.6;margin-bottom:6px;}
+.d-next b {font-weight:normal;color:var(--node);}
+.d-bar {height:12px;border:2px solid var(--ui);margin-bottom:14px;}
+.d-bar i {display:block;height:100%;background:var(--node);}
+.d-ladder {list-style:none;border-left:2px solid var(--dim);margin:6px 0 14px;}
+.d-ladder li {padding:4px 0 4px 10px;font-family:'Galmuri11',monospace;font-size:12px;}
+.d-ladder li div {display:flex;justify-content:space-between;gap:8px;}
+.d-ladder li p {color:#9aa7ae;font-size:11px;line-height:1.5;margin-top:1px;}
+.d-ladder li.now p {color:var(--fg);}
+.d-ladder li.lock p {color:var(--dim);}
+.d-rules {border:2px dashed var(--dim);padding:8px 10px;margin:4px 0 10px;font-family:'Galmuri11',monospace;font-size:12px;line-height:1.6;}
+.d-rules h3 {font:inherit;color:var(--ui);margin-bottom:4px;}
+.d-rules ul {list-style:none;}
+.d-rules li::before {content:'· ';color:var(--ui);}
+.d-rules b {font-weight:normal;color:var(--node);}
+.d-ladder li em {font-style:normal;color:var(--dim);}
+.d-ladder li.got span {color:var(--ui);}
+.d-ladder li.now {background:#22222b;}
+.d-ladder li.now span {color:var(--node);}
+.d-ladder li.now span::before {content:'▶ ';}
+.d-ladder li.lock span {color:var(--dim);}
+.d-recent-h {color:#9aa7ae;font-family:'Galmuri11',monospace;font-size:12px;margin-bottom:6px;}
+.d-recent {list-style:none;display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px;}
+.d-recent li {border:2px solid var(--dim);padding:1px 6px;font-family:'Galmuri11',monospace;font-size:12px;}
+.d-continue {width:100%;background:var(--ui);color:var(--bg);}
+.d-continue:hover {background:var(--fg);border-color:var(--fg);}
+
+/* wanderer */
+.d-wanderer {position:fixed;z-index:3;transform:translate(-50%,-100%);}
+.d-wbody {display:block;border:0;padding:0;background:none;cursor:pointer;animation:d-bob .52s steps(2) infinite;}
+.d-wbody:hover {background:none;filter:brightness(1.2);}
+.d-wbody canvas {display:block;image-rendering:pixelated;}
+.d-bubble {position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);width:220px;padding:8px;
+  background:var(--bg);border:2px solid #b9a3ff;font-family:'Galmuri11',monospace;font-size:12px;line-height:1.5;}
+.d-bubble div {display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px;}
+.d-bubble button {font-size:12px;padding:4px;}
+.d-follow {border-color:#b9a3ff;color:#b9a3ff;}
+
+/* world.css styles every <canvas> as the full-screen globe; keep D's small sprites in place */
+.d-wbody canvas, .d-hero canvas {position:static;inset:auto;cursor:inherit;}
+.d-wbody canvas {width:48px;height:48px;}
+.d-hero canvas {width:96px;height:120px;}
+
+/* briefing (before the game) */
+.d-lead {line-height:1.7;margin-bottom:14px;}
+.d-lead b {font-weight:normal;color:var(--node);}
+.d-path {display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;padding:10px 14px;border:2px solid var(--dim);}
+.d-path figure {display:grid;justify-items:center;gap:4px;margin:0;text-align:center;font-family:'Galmuri11',monospace;font-size:12px;}
+.d-path figcaption small {display:block;color:#9aa7ae;font-size:11px;}
+.d-path canvas {position:static;inset:auto;width:64px;height:80px;image-rendering:pixelated;}
+.d-arrow {color:var(--ui);animation:d-blink 1s steps(2) infinite;letter-spacing:2px;}
+.d-ladder li.goal span {color:#ffe066;}
+.d-ladder li.goal p {color:var(--fg);}
+.d-hint {color:#9aa7ae;font-family:'Galmuri11',monospace;font-size:12px;margin-bottom:12px;}
+.d-briefing .d-ladder li.lock p {display:none;}
+.d-briefing .d-ladder li {padding-block:2px;}
+.d-briefing .d-continue {position:sticky;bottom:0;box-shadow:0 -10px 0 var(--bg);}
