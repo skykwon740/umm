@@ -26,15 +26,20 @@ const older={...legacy,a:1};delete older.h;delete older.g;
 storage.set('webglobe3',JSON.stringify(older));assert.equal(load(),true);
 assert.equal(state.here,b);assert.equal(state.guide[b],1);
 storage.set('webglobe3',JSON.stringify(legacy));load();
-let arrivals=0;const keys=new Set();
-const navigation=createNavigation({project:v=>({x:v[0]*100,y:-v[1]*100}),onArrive:()=>arrivals++,keys});
+let arrivals=0;
+const navigation=createNavigation({project:v=>({x:v[0]*100,y:-v[1]*100}),onArrive:()=>arrivals++});
 navigation.walkTo(c);assert.equal(state.walkPath.at(-1),c);
 while(state.walkPath.length)navigation.step(nextWalkStep());
 assert.equal(state.here,c);assert.equal(state.cells[b],ROAD);assert.equal(state.guide[b],0);assert.equal(state.cells[a],ENTERED);assert.ok(arrivals>0);
 save();beginJourney();load();
 assert.equal(state.here,c);assert.deepEqual(state.route,[a,b,c]);assert.equal(state.nodes[0].t,'Dance');
-// Keyboard movement uses the same state and clears queued click travel.
-storage.set('webglobe3',JSON.stringify(legacy));load();queueWalk([c]);keys.add('ArrowRight');
-assert.equal(navigation.keyStep(),true);assert.notEqual(state.here,a);assert.deepEqual(state.walkPath,[]);
+// Clicking again replaces travel; disconnected cells never teleport the walker.
+storage.set('webglobe3',JSON.stringify(legacy));load();
+navigation.walkTo(c);navigation.walkTo(b);assert.equal(state.walkPath.at(-1),b);
+navigation.walkTo(a);assert.deepEqual(state.walkPath,[]);
+const disconnected=0,isolated=[...cells];isolated[disconnected]=ROAD;
+storage.set('webglobe3',JSON.stringify({...legacy,c:isolated.join('')}));load();
+assert.equal(navigation.walkTo(disconnected),false);assert.equal(state.here,a);
+assert.equal(navigation.walkTo(-1),false);assert.equal(state.here,a);
 storage.set('webglobe3','invalid json');assert.doesNotThrow(()=>load());
-console.log('PASS: all 3456 cell identities, destination encoding, legacy save round-trip, click/keyboard travel and visited flags.');
+console.log('PASS: all 3456 cell identities, destination encoding, legacy save round-trip, click travel and disconnected-path rejection and visited flags.');

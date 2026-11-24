@@ -32,10 +32,10 @@ function showHint() {
   let items;
   if (state.holding) items = [['', '마지막 건물 도착']];
   else if (state.pending) items = [['', '루트 찾는 중…']];
-  else if (state.here < 0) items = [['Enter', '관심사 입력 후 출발'], ...look];
-  else if (onNode && state.cells[state.here] === BLDG) items = [['Enter', '위키백과 열기'], ['', '또는 구글 이미지 선택'], ['↑↓←→', '이동']];
+  else if (state.here < 0) items = [['클릭', '관심사 입력 후 출발'], ...look];
+  else if (onNode && state.cells[state.here] === BLDG) items = [['클릭', '위키백과 열기'], ['', '또는 구글 이미지 선택'], ['클릭', '길이나 건물로 이동']];
   else if (state.here === state.route[state.route.length - 1]) items = [['', '새 관심사를 입력하거나 이 주소에서 다시 출발']];
-  else items = [['↑↓←→', '이동'], ['클릭', '길 위 타일로 이동'], ...look];
+  else items = [['클릭', '길이나 건물로 이동'], ...look];
   hintEl.innerHTML = items.map(([k, t]) => `<span>${k ? `<kbd>${k}</kbd>` : ''}${t}</span>`).join('');
 }
 
