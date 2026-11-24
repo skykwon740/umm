@@ -10,6 +10,8 @@ import {createJourney} from './journey.js';
 import {createResults,drawLabels,hideResults} from './ui/results.js';
 import {describe} from './content/wikipedia.js';
 import {showChain,setStatus,setJourneyBusy,bindSearch} from './ui/panel.js';
+import {emit} from './core/events.js';
+import {createMission} from './ui/mission.js';
 
 load();
 loadInterests();
@@ -21,17 +23,21 @@ const results=createResults({
     const node=await journey.extend(family.t,from.lang,family.d);
     if(node){next=node;setStatus(node.t+'에게 가는 길이 열렸어요. 파란 길을 따라 걸어가세요.');}
   },
+  onFirstContact:node=>emit('contact',node),
 });
 function arrive() {
   results.arrive();
   memo.show(state.nodes.find(n=>nodeCell(n)===state.here));
   if(next&&nodeCell(next)===state.here){next=null;setStatus();}
+  emit('arrive');
 }
 const journey=createJourney({
-  onStart(){memo.show(null);hideResults();setStatus();setJourneyBusy(true);next=null;},
-  onChange:showChain,onFocus:focusCamera,onArrive:arrive,onMessage:setStatus,
-  onFinish(){setJourneyBusy(false);},
+  onStart(){memo.show(null);hideResults();setStatus();setJourneyBusy(true);next=null;emit('journeyStart');},
+  onChange:showChain,onFocus:focusCamera,onArrive:arrive,
+  onMessage(message){setStatus(message);emit('journeyMessage',message);},
+  onFinish(){setJourneyBusy(false);emit('journeyEnd');},
 });
+const mission=createMission({startJourney:(title,lang)=>journey.run(title,lang)});
 const navigation=createNavigation({project,onArrive:arrive,onMessage:setStatus});
 // 서 있는 외계인을 클릭하면 이야기 창을 연다. 다른 곳은 원래대로 걸어간다.
 bindInput({walkTo:cell=>results.isAlienHere(cell)?results.openStory():navigation.walkTo(cell)});
@@ -47,6 +53,7 @@ function frame(time) {
   }
   if(tickCamera(time))requestRedraw();
   if(consumeRedraw())render(time,drawLabels);
+  mission.tick(time);
   requestAnimationFrame(frame);
 }
 // 숨겨진 창에서 열리면 크기가 0이라 지구를 그릴 수 없다. 창에 크기가 생기면 그때 시작한다.
