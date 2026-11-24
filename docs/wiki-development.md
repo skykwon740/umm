@@ -33,13 +33,13 @@ node tests/wiki-boundaries.mjs
 | 픽셀 지구·건물·캐릭터 그리기 | `src/world/renderer.js`, `styles/world.css` | 화면 투영과 픽셀 표현 |
 | 카메라 회전·확대·추적 | `src/world/camera.js` | 읽기 전용 카메라 값과 전용 변경 함수 |
 | 걷기·클릭 경로 계산 | `src/world/navigation.js` | 이동 규칙, 도착 콜백 |
-| 키보드·드래그·휠 | `src/world/input.js` | 입력을 이동/카메라 명령으로 변환 |
+| 클릭·드래그·휠 | `src/world/input.js` | 입력을 이동/카메라 명령으로 변환 |
 | 루트 목록·발견율·힌트·상태 메시지 | `src/ui/panel.js`, `styles/panel.css` | 패널 표현 |
 | 두 결과 버튼·도착 단어 라벨·방문 깃발 | `src/ui/results.js`, `styles/results.css` | 외부 열기와 재출발 연결 |
 | 공통 색·글꼴·기본 컨트롤 | `styles/base.css` | 공통 스타일. 화면 전용 규칙을 넣지 않기 |
 | 문서 뼈대·모듈 진입점 | `index.html` | 공통 HTML. 기능 구현 코드를 다시 넣지 않기 |
 
-순서에 의존하는 전역 스크립트 대신 `import`/`export`를 사용한다. `app.js`가 실제 UI·카메라·탐험의 연결을 담당한다. `journey.js`는 UI나 렌더러를 import하지 않으며, DOM 없는 Node 테스트에서도 실행된다. 이동 입력의 기본 링크 열기도 `app.js`가 콜백으로 연결한다.
+순서에 의존하는 전역 스크립트 대신 `import`/`export`를 사용한다. `app.js`가 실제 UI·카메라·탐험의 연결을 담당한다. `journey.js`는 UI나 렌더러를 import하지 않으며, DOM 없는 Node 테스트에서도 실행된다. 이동 도착 콜백과 관심 표시 UI도 `app.js`가 연결한다. 전역 키보드 이동·링크 열기는 사용하지 않는다.
 
 ## 상태 변경 규칙
 
@@ -88,3 +88,24 @@ node tests/wiki-boundaries.mjs
 4. Tab으로 두 링크에 접근하고 Enter로 선택. 캔버스에서 Enter는 기존처럼 위키백과 열기.
 5. 새로고침 → 위치·경로·방문 상태 복원 → 이 주소에서 다시 출발 → 새 관심사 출발.
 6. 드래그 회전·휠 확대, 좁은 화면의 두 버튼, 문서가 없는 입력과 네트워크 실패 후 재시도 확인.
+
+## B 이동·조작 변경
+
+- `world/input.js`: 왼쪽 클릭과 5px 이상 드래그 구분, 캔버스 위 휠, 포인터 취소 처리. 전역 키보드 바인딩 없음.
+- `world/navigation.js`: 연결된 타일 탐색과 인접 타일 캐시. 현재 루트 안에서는 그려진 순서를 유지하며, 연결이 없으면 안내하고 위치를 유지한다.
+- `core/state.js`: 남은 경로의 타일 수에 따라 이동 간격을 32~110ms로 조절. 좌표 보간은 경과 시간을 반영한다. 이동 저장은 250ms 지연하며 탭 숨김·페이지 종료 시 앱에서 즉시 저장한다.
+- `world/camera.js`: 수동 회전 시 추적 해제, `resumeTracking`으로 재개. 새 경로의 overview/walk 전환 시 추적 복원.
+- `core/interests.js`: `webglobe-interests-v1` 저장소 소유. 언어·제목별 하트/500자 메모 저장, 실패하면 기존 값을 유지한다. 기존 `webglobe3` 형식은 유지한다.
+- `ui/memo.js`: 도착 단어의 하트와 명시적인 메모 저장 UI. 메모는 이동 전에 저장해야 한다.
+- 검색은 `ui/panel.js`에서 공백·100자 초과·중복 제출을 막고 한글 조합 중 Enter를 처리한다. 글자 수는 HTML maxlength와 동일하게 UTF-16 길이 기준이다.
+
+검사:
+
+```bash
+node scripts/check-wiki.mjs
+node tests/wiki-explorer.mjs
+node tests/wiki-boundaries.mjs
+node tests/wiki-controls.mjs
+```
+
+`wiki-controls`는 저장 실패/언어 구분, 수동 카메라 추적, 30/60Hz 카메라 보간, 경로 길이에 따른 이동 속도를 검사한다. DOM 어댑터로 실제 입력·검색·메모 이벤트 핸들러도 실행한다. 실제 브라우저의 화면 배치·조작감 검사를 대신하지 않는다.
