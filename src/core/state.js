@@ -86,6 +86,14 @@ export function completeJourney() {
     ...(start===undefined?{}:{here:start,walker:cellVec(start),facing:1})});
   if(start!==undefined)save();return start!==undefined;
 }
+// 고른 가족까지 길을 이어 붙인다. 지금까지의 경로와 캐릭터 위치는 그대로 둔다.
+export function beginExtension() {
+  if(state.busy||state.here<0)return false;
+  commit({walkPath:[],revealing:true,pending:true,busy:true,dirty:true});return true;
+}
+export function finishExtension() {
+  commit({pending:false,revealing:false,busy:false,upcoming:null,holding:false,dirty:true});save();
+}
 export function updateNodeDescription(index,d) {
   if(!state.nodes[index])return;
   const nodes=state.nodes.slice();nodes[index]={...nodes[index],d};commit({nodes,dirty:true});save();

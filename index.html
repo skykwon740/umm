@@ -9,17 +9,33 @@
 <link rel="stylesheet" href="styles/world.css">
 <link rel="stylesheet" href="styles/panel.css">
 <link rel="stylesheet" href="styles/results.css">
+<link rel="stylesheet" href="styles/story.css">
 </head>
 <body>
 <canvas id="c"></canvas>
 <canvas id="fx"></canvas>
 <div id="labels"></div>
-<div id="resultActions" role="group" aria-label="도착한 단어의 결과 선택" hidden>
-  <strong id="resultTitle"></strong>
-  <div class="result-links">
-    <a id="openWiki" class="btn go" target="_blank" rel="noopener noreferrer">위키백과</a>
-    <a id="openImages" class="btn" target="_blank" rel="noopener noreferrer">구글 이미지</a>
+<div id="resultActions" role="group" aria-label="도착한 외계인" hidden>
+  <div class="result-head">
+    <strong id="resultTitle"></strong>
+    <button id="closeStory" type="button" aria-label="이야기 닫기" hidden>닫기</button>
   </div>
+  <button id="openStory" type="button">이야기 듣기</button>
+  <section id="story" aria-labelledby="resultTitle" tabindex="-1" hidden>
+    <p id="storySummary" aria-live="polite"></p>
+    <div class="result-links">
+      <a id="openWiki" class="btn go" target="_blank" rel="noopener noreferrer">위키백과 원문</a>
+      <a id="openImages" class="btn" target="_blank" rel="noopener noreferrer">구글 이미지</a>
+    </div>
+    <button id="embedWiki" type="button" aria-expanded="false" aria-controls="wikiFrame">창 안에서 보기</button>
+    <iframe id="wikiFrame" title="위키백과 문서" referrerpolicy="no-referrer" hidden></iframe>
+    <p class="story-source">출처: 위키백과 (CC BY-SA 4.0)</p>
+    <div id="storyReaction" data-slot="reaction"></div>
+    <h3 id="familyTitle">가족 후보</h3>
+    <p id="familyGuide" aria-live="polite"></p>
+    <ul id="familyBoxes" aria-labelledby="familyTitle"></ul>
+    <button id="storyRetry" type="button" hidden>다시 불러오기</button>
+  </section>
 </div>
 <div id="top">
   <div id="found"><span>발견</span><div id="meter"><i></i></div><span id="pct"></span></div>

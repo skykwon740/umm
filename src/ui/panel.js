@@ -30,17 +30,20 @@ function showChain() {
   meterEl.style.width = n ? `max(2px, ${pct}%)` : '0';
   showHint();
 }
+let storyOpen = false;
+export function setStoryOpen(open) { storyOpen = open; showHint(); }
 // controls for the current stage only
 function showHint() {
   const onNode = state.nodes.some(n => nodeCell(n) === state.here);
   const look = [['드래그', '회전'], ['휠', '확대']];
   let items;
-  if (state.holding) items = [['', '마지막 건물 도착']];
+  if (state.holding) items = [['', '새 외계인 발견']];
   else if (state.pending) items = [['', '루트 찾는 중…']];
   else if (state.here < 0) items = [['클릭', '관심사 입력 후 출발'], ...look];
-  else if (onNode && state.cells[state.here] === BLDG) items = [['클릭', '위키백과 열기'], ['', '또는 구글 이미지 선택'], ['클릭', '길이나 건물로 이동']];
-  else if (state.here === state.route[state.route.length - 1]) items = [['', '새 관심사를 입력하거나 이 주소에서 다시 출발']];
-  else items = [['클릭', '길이나 건물로 이동'], ...look];
+  else if (onNode && storyOpen) items = [['', '가족 후보를 고르면 그 외계인까지 길이 열림'], ['Esc', '이야기 닫기']];
+  else if (onNode) items = [['클릭', '외계인을 눌러 이야기 듣기'], ['클릭', '길이나 외계인으로 이동']];
+  else if (state.cells[state.route.at(-1)] === BLDG) items = [['클릭', '파란 길을 따라 다음 외계인에게'], ...look];
+  else items = [['클릭', '길이나 외계인으로 이동'], ...look];
   hintEl.innerHTML = items.map(([k, t]) => `<span>${k ? `<kbd>${k}</kbd>` : ''}${t}</span>`).join('');
 }
 

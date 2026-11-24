@@ -56,19 +56,31 @@ function controller(wiki) {
   });
   return {journey,events,messages,languages};
 }
-const routes={'춤':['민속무용','다음'],'민속무용':['전통문화','예술']};
-const wiki={search:async(_lang,q)=>q,describe:async(_lang,title)=>title+' 설명',
-  pick:async(_lang,_title,path)=>routes[path[0]]?.[path.length-2]??null};
+const wiki={search:async(_lang,q)=>q,describe:async(_lang,title)=>title+' 설명'};
+const tripTitles=()=>state.trip.map(i=>state.nodes[i].t);
 reset();const success=controller(wiki);
 assert.equal(typeof globalThis.document,'undefined','Journey tests run without browser DOM');
+// C 트랙: 관심사 → 첫 외계인 하나. 캐릭터는 그 앞에서 시작한다
 await success.journey.run('춤');
-assert.deepEqual(state.trip.map(i=>state.nodes[i].t),['춤','민속무용','다음']);
+assert.deepEqual(tripTitles(),['춤']);
 assert.equal(state.here,nodeCell(state.nodes[0]));assert.equal(state.pending,false);assert.equal(state.revealing,false);
 assert.equal(success.events.at(-1),'arrive');assert.deepEqual(success.messages,[]);assert.deepEqual(success.languages,['ko']);
+// 가족을 고르면 지금 외계인에서 길이 이어지고, 캐릭터와 이전 경로는 그대로다
+const start=state.here,routeBefore=state.route.slice();
+const added=await success.journey.extend('민속무용','ko','민속무용 설명');
+assert.equal(added.t,'민속무용');assert.deepEqual(tripTitles(),['춤','민속무용']);
+assert.equal(state.here,start);assert.deepEqual(state.route.slice(0,routeBefore.length),routeBefore);
+assert.ok(state.route.length>routeBefore.length+1,'The revealed road leads to the new alien');assert.equal(state.route.at(-1),nodeCell(added));
+assert.equal(state.nodes.at(-1).d,'민속무용 설명');
+assert.equal(state.busy,false);assert.equal(state.revealing,false);assert.equal(state.holding,false);assert.equal(state.upcoming,null);
+assert.equal(success.events.at(-1),'arrive');
 visitCurrent();await success.journey.run('민속무용','ko');
-assert.deepEqual(state.trip.map(i=>state.nodes[i].t),['민속무용','전통문화','예술']);
+assert.deepEqual(tripTitles(),['민속무용']);
 assert.equal(state.cells[nodeCell(state.nodes.find(n=>n.t==='춤'))],ENTERED,'Restart preserves earlier visits');
 assert.throws(()=>state.nodes.push({}),TypeError);
+reset();const idle=controller(wiki);
+assert.equal(await idle.journey.extend('민속무용','ko'),null,'Extending needs an alien under the character');
+assert.equal(state.busy,false);
 
 reset();const missing=controller({...wiki,search:async()=>undefined});await missing.journey.run('없는문서');
 assert.match(missing.messages[0],/찾지 못/);assert.equal(state.busy,false);assert.equal(missing.events.at(-1),'ready');
@@ -76,11 +88,12 @@ reset();let attempts=0;
 const retry=controller({...wiki,search:async(_lang,q)=>{if(!attempts++)throw new Error('offline');return q;}});
 await retry.journey.run('astronomy');assert.match(retry.messages[0],/연결/);assert.equal(state.busy,false);
 await retry.journey.run('astronomy');assert.equal(state.nodes[0].t,'astronomy');assert.deepEqual(retry.languages,['en','en']);
-reset();const partial=controller({...wiki,pick:async()=>{throw new Error('connection lost');}});
-await partial.journey.run('춤');assert.equal(state.trip.length,1);assert.equal(partial.events.at(-1),'arrive');assert.equal(state.busy,false);
+reset();const partial=controller({...wiki,describe:async()=>{throw new Error('connection lost');}});
+await partial.journey.run('춤');assert.match(partial.messages[0],/연결/);assert.equal(state.trip.length,0);assert.equal(state.busy,false);
 reset();let resolveSearch,searches=0;
-const concurrent=controller({...wiki,search:()=>{searches++;return new Promise(resolve=>{resolveSearch=resolve;});},pick:async()=>null});
+const concurrent=controller({...wiki,search:()=>{searches++;return new Promise(resolve=>{resolveSearch=resolve;});}});
 const running=concurrent.journey.run('춤');await concurrent.journey.run('여행');assert.equal(searches,1);
+assert.equal(await concurrent.journey.extend('여행','ko'),null,'No extension while a search is running');
 resolveSearch('춤');await running;assert.equal(state.busy,false);
 
 const root=fileURLToPath(new URL('../src/',import.meta.url));
@@ -92,4 +105,4 @@ assert.throws(()=>inspectArchitecture(domLeak),/cannot access the DOM/);
 assert.throws(()=>inspectArchitecture(new Map([
   ['world/a.js',"import './b.js';"],['world/b.js',"import './a.js';"],
 ])),/Circular dependency/);
-console.log('PASS: deeply immutable state/camera, owned actions, DOM-free journey success/restart/failure/retry/concurrency, forbidden imports and cycle guards.');
+console.log('PASS: deeply immutable state/camera, owned actions, DOM-free journey first alien/family extension/restart/failure/retry/concurrency, forbidden imports and cycle guards.');
