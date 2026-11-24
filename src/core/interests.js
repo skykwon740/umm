@@ -18,3 +18,12 @@ export function saveInterest(node,patch,storage) {
   const next={...entries,[keyOf(node)]:value};
   try { (storage??globalThis.localStorage).setItem(KEY,JSON.stringify(next));entries=next;return true; } catch { return false; }
 }
+// 읽기 전용: 하트했거나 메모가 있는 항목 전부 [{lang,t,heart,memo}]
+export function listInterests() {
+  const out=[];
+  for(const [key,value] of Object.entries(entries)) {
+    if(!value.heart&&!value.memo.trim())continue;
+    try { const [lang,t]=JSON.parse(key);if(typeof t==='string')out.push(Object.freeze({lang,t,heart:value.heart,memo:value.memo})); } catch {}
+  }
+  return Object.freeze(out);
+}

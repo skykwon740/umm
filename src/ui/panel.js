@@ -1,8 +1,7 @@
-import {state, BLDG, ENTERED, ROAD, routeColor} from '../core/state.js';
+import {state, BLDG, ENTERED, routeColor} from '../core/state.js';
 import {nodeCell} from '../core/grid.js';
 export const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const chainEl=document.getElementById('chain'),pctEl=document.getElementById('pct');
-const meterEl=document.querySelector('#meter i'),hintEl=document.getElementById('hint');
+const chainEl=document.getElementById('chain'),hintEl=document.getElementById('hint');
 export function setStatus(message='') { document.getElementById('status').textContent=message; }
 export function setJourneyBusy(busy) { document.getElementById('goBtn').disabled=busy; }
 export function bindSearch(onSearch) {
@@ -35,10 +34,6 @@ function showChain() {
     return rows.length?`<section class="journey-group"><h3 style="--route-color:${color}">${esc(journey.start||'탐사')}</h3><ol>${rows.join('')}</ol></section>`:'';
   }).join('');
   chainEl.innerHTML = groups || (state.pending ? '…' : '');
-  let n = 0; for (const c of state.cells) if (c >= ROAD) n++;
-  const pct = n / state.cells.length * 100;
-  pctEl.textContent = pct.toFixed(2) + '%';
-  meterEl.style.width = n ? `max(2px, ${pct}%)` : '0';
   showHint();
 }
 let storyOpen = false;
