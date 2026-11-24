@@ -69,11 +69,12 @@ input.value='   ';bar.fire('submit');assert.equal(searches.length,0);
 input.value='a'.repeat(101);bar.fire('submit');assert.equal(searches.length,0);
 input.value='  여행  ';bar.fire('submit');assert.deepEqual(searches,['여행']);
 let prevented=false;input.fire('keydown',{key:'Enter',isComposing:true,preventDefault(){prevented=true;}});assert.equal(prevented,true);
+// 메모는 저장 버튼 없이 입력 뒤 잠시 있다가, 다른 외계인으로 바뀔 때 저장된다 (팀 결정: 메모 자동 저장)
 const {createMemo}=await import('../src/ui/memo.js');
-const memo=createMemo();memo.show(en);
-const memoInput=document.getElementById('memoText');memoInput.value='안전한 메모';
-document.getElementById('memoEditor').fire('submit');assert.equal(getInterest(en).memo,'안전한 메모');
+const memo=createMemo({delay:20});memo.show(en);
+const memoInput=document.getElementById('memoText');memoInput.value='안전한 메모';memoInput.fire('input');
+assert.notEqual(getInterest(en).memo,'안전한 메모');
+await new Promise(resolve=>setTimeout(resolve,80));assert.equal(getInterest(en).memo,'안전한 메모');
 document.getElementById('heart').fire('click');assert.equal(getInterest(en).heart,true);
 memo.show(ko);assert.equal(memoInput.value,'<script>메모</script>');
-memo.show(null);assert.equal(document.getElementById('interestPanel').hidden,true);
-console.log('PASS: actual click/drag/right-click handlers, mouse-only world bindings, search limits/IME, memo save/toggle and node switching.');
+console.log('PASS: actual click/drag/right-click handlers, mouse-only world bindings, search limits/IME, memo autosave/heart and node switching.');
