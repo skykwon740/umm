@@ -26,7 +26,7 @@ export function createJourney({onStart,onChange,onFocus,onArrive,onMessage,onFin
   }
   // 관심사 → 첫 외계인. 캐릭터는 첫 외계인 앞에서 시작한다.
   async function run(query,lang) {
-    if(!query.trim()||!beginJourney())return;
+    if(!query.trim()||!beginJourney(query.trim()))return;
     onStart();onChange();lang=lang||(/[ㄱ-ㅎ가-힣]/.test(query)?'ko':'en');
     try {
       const first=await wiki.search(lang,query);

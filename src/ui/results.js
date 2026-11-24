@@ -1,4 +1,4 @@
-import {state,ENTERED,requestRedraw,visitCurrent} from '../core/state.js';
+import {state,ENTERED,requestRedraw,visitCurrent,awakenCurrentNode} from '../core/state.js';
 import {vec, nodeCell,cellVec} from '../core/grid.js';
 import {cellPx, project, pose, PX, FLAG_SPRITE} from '../world/renderer.js';
 import {wikiURL, imageSearchURL} from '../content/result-links.js';
@@ -18,6 +18,7 @@ export function createResults({onRestart,onChoose,onFirstContact}) {
   story=createStory({
     onChoose,onFirstContact(n){showChain();onFirstContact?.(n);},
     onToggle(open){
+      if(open)awakenCurrentNode();
       resultEl.classList.toggle('open',open);openStoryEl.hidden=open;closeStoryEl.hidden=!open;
       setStoryOpen(open);requestRedraw();
       // 창 자체로 초점을 옮긴다. 버튼으로 옮기면 창을 연 Enter가 그 버튼까지 눌러 버린다

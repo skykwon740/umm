@@ -1,8 +1,18 @@
-import {FACE,cellVec,hash,ll,nodeCell,vec} from './grid.js';
+import {CELL_COUNT,cellVec,hash,ll,nodeCell,vec,cellOf,legacyCellVec} from './grid.js';
 
 export const UNKNOWN=0,PLAN=1,ROAD=2,BLDG=3,ENTERED=4,GUIDE=5,GUIDE_OFF=6;
-const CELL_COUNT=6*FACE;
 const validCell=c=>Number.isInteger(c)&&c>=0&&c<CELL_COUNT;
+export const ROUTE_COLORS=['#ff9d42','#56c7e8','#d779e8','#a3d957','#f06f79','#7789f3','#e3c84d','#4dd0a4'];
+export function routeColor(index) {
+  if(index<ROUTE_COLORS.length)return ROUTE_COLORS[index];
+  const h=(index*137.508+18)%360,s=.72,l=.62,c=(1-Math.abs(2*l-1))*s,x=c*(1-Math.abs(h/60%2-1)),m=l-c/2;
+  const rgb=h<60?[c,x,0]:h<120?[x,c,0]:h<180?[0,c,x]:h<240?[0,x,c]:h<300?[x,0,c]:[c,0,x];
+  return '#'+rgb.map(v=>Math.round((v+m)*255).toString(16).padStart(2,'0')).join('');
+}
+function addRootToCell(sets,cell,root) {
+  if(root<0||sets[cell].includes(root))return;
+  sets[cell]=[...sets[cell],root];
+}
 function freeze(value) {
   if(value&&typeof value==='object'&&!Object.isFrozen(value)) {
     Object.values(value).forEach(freeze);Object.freeze(value);
@@ -11,9 +21,9 @@ function freeze(value) {
 }
 function initialState() {
   return {
-    cells:Array(CELL_COUNT).fill(UNKNOWN),guide:Array(CELL_COUNT).fill(0),
+    cells:Array(CELL_COUNT).fill(UNKNOWN),guide:Array(CELL_COUNT).fill(0),cellRoots:Array(CELL_COUNT).fill(-1),cellRootSets:Array.from({length:CELL_COUNT},()=>[]),journeys:[],activeRoot:-1,
     nodes:[],trip:[],route:[],here:-1,walkPath:[],
-    dirty:true,walker:null,facing:1,lastStep:-1e9,blinkOn:true,
+    dirty:true,walker:null,facing:1,lastStep:-1e9,blinkOn:true,alienJumpAt:0,
     revealing:false,pending:false,upcoming:null,holding:false,busy:false,
   };
 }
@@ -26,22 +36,36 @@ export function save(storage) {
   try {
     (storage??globalThis.localStorage).setItem('webglobe3',JSON.stringify({
       c:state.cells.join(''),n:state.nodes,r:state.route,t:state.trip,
-      h:state.here,g:state.route.filter(c=>state.guide[c]),
+      h:state.here,g:state.route.filter(c=>state.guide[c]),cr:state.cellRoots,cs:state.cellRootSets,j:state.journeys,
     }));return true;
   } catch { return false; }
 }
 export function load(storage) {
   try {
     const s=JSON.parse((storage??globalThis.localStorage).getItem('webglobe3'));
-    if(!s||typeof s.c!=='string'||s.c.length!==CELL_COUNT||!/^[0-6]+$/.test(s.c))return false;
+    if(!s||typeof s.c!=='string'||![CELL_COUNT,3456].includes(s.c.length)||!/^[0-6]+$/.test(s.c))return false;
     const nodes=s.n??[],route=s.r??[],trip=s.t??[];
     if(!Array.isArray(nodes)||nodes.some(n=>!n||typeof n.t!=='string'||!['ko','en'].includes(n.lang)||!Number.isFinite(n.lat)||!Number.isFinite(n.lon)))return false;
-    if(!Array.isArray(route)||!route.every(validCell)||!Array.isArray(trip)||!trip.every(i=>Number.isInteger(i)&&i>=0&&i<nodes.length))return false;
-    const here=s.h??route[s.a??0]??-1,visible=s.g??route.filter(c=>+s.c[c]===PLAN);
-    if((here!==-1&&!validCell(here))||!Array.isArray(visible)||!visible.every(validCell))return false;
-    const guide=Array(CELL_COUNT).fill(0);visible.forEach(c=>{guide[c]=1;});
-    state=freeze({...initialState(),nodes,route,trip,here,guide,
-      cells:[...s.c].map(type=>+type===PLAN&&!route.length?UNKNOWN:+type)});
+    const legacy=s.c.length!==CELL_COUNT;
+    const mapCell=c=>legacy?cellOf(...legacyCellVec(c)):c;
+    const migratedRoute=route.map(mapCell),migratedHere=s.h??route[s.a??0]??-1;
+    const here=migratedHere<0?-1:mapCell(migratedHere);
+    const maxCell=legacy?3456:CELL_COUNT;
+    if(!Array.isArray(route)||!route.every(c=>Number.isInteger(c)&&c>=0&&c<maxCell)||(here!==-1&&!validCell(here))||!Array.isArray(trip)||!trip.every(i=>Number.isInteger(i)&&i>=0&&i<nodes.length))return false;
+    const rawVisible=s.g??route.filter(c=>+s.c[c]===PLAN);
+    if(!Array.isArray(rawVisible)||!rawVisible.every(c=>Number.isInteger(c)&&c>=0&&c<maxCell))return false;
+    const visible=rawVisible.map(mapCell);
+    const guide=Array(CELL_COUNT).fill(0);visible.forEach(c=>{if(validCell(c))guide[c]=1;});
+    const cells=Array(CELL_COUNT).fill(UNKNOWN);
+    if(legacy) [...s.c].forEach((type,c)=>{const d=mapCell(c);if(+type>cells[d])cells[d]=+type;});
+    else [...s.c].forEach((type,c)=>{cells[c]=+type;});
+    const cellRoots=Array(CELL_COUNT).fill(-1);
+    if(Array.isArray(s.cr)&&s.cr.length===CELL_COUNT)s.cr.forEach((root,c)=>{cellRoots[c]=Number.isInteger(root)?root:-1;});
+    let journeys=Array.isArray(s.j)?s.j.filter(j=>j&&typeof j.start==='string'&&Array.isArray(j.trip)).map((j,i)=>({start:j.start,color:/^#[\da-f]{6}$/i.test(j.color)?j.color:routeColor(i),trip:j.trip.filter(i=>Number.isInteger(i)&&i>=0&&i<nodes.length)})):[];
+    if(!journeys.length&&trip.length)journeys=[{start:nodes[trip[0]]?.t??'',color:routeColor(0),trip}];
+    const cellRootSets=Array.from({length:CELL_COUNT},(_,c)=>Array.isArray(s.cs?.[c])?s.cs[c].filter(root=>Number.isInteger(root)&&root>=0&&root<journeys.length):cellRoots[c]>=0&&cellRoots[c]<journeys.length?[cellRoots[c]]:[]);
+    const activeRoot=journeys.length-1;
+    state=freeze({...initialState(),nodes,route:migratedRoute,trip,here,guide,cells,cellRoots,cellRootSets,journeys,activeRoot});
     return true;
   } catch { return false; }
 }
@@ -53,9 +77,10 @@ export function initializeWalker() {
   const last=state.nodes.at(-1),here=state.here<0&&last?nodeCell(last):state.here;
   commit({here,walker:here>=0?cellVec(here):vec(20,0),dirty:true});
 }
-export function beginJourney() {
+export function beginJourney(start='') {
   if(state.busy)return false;
-  commit({cells:state.cells.map(c=>c===PLAN?UNKNOWN:c),guide:Array(CELL_COUNT).fill(0),
+  const journeys=[...state.journeys,{start,color:routeColor(state.journeys.length),trip:[]}];
+  commit({cells:state.cells.map(c=>c===PLAN?UNKNOWN:c),guide:Array(CELL_COUNT).fill(0),journeys,activeRoot:journeys.length-1,
     trip:[],route:[],here:-1,walkPath:[],walker:null,upcoming:null,holding:false,
     revealing:true,pending:true,busy:true,dirty:true});return true;
 }
@@ -65,19 +90,23 @@ export function addJourneyNode(t,lang,d) {
     const [lat,lon]=ll(cellVec(hash(t)%CELL_COUNT));index=nodes.length;nodes.push({t,lang,lat,lon});
   }
   if(d)nodes[index]={...nodes[index],d};
-  const cell=nodeCell(nodes[index]),cells=state.cells.slice();
+  const cell=nodeCell(nodes[index]),cells=state.cells.slice(),cellRoots=state.cellRoots.slice(),cellRootSets=state.cellRootSets.slice();
   if(cells[cell]!==ENTERED)cells[cell]=BLDG;
+  if(cellRoots[cell]<0&&state.activeRoot>=0)cellRoots[cell]=state.activeRoot;
+  addRootToCell(cellRootSets,cell,state.activeRoot);
   const route=state.route.at(-1)===cell?state.route:[...state.route,cell];
-  commit({nodes,cells,route,trip:[...state.trip,index],dirty:true});save();return state.nodes[index];
+  const trip=[...state.trip,index],journeys=state.journeys.map((j,i)=>i===state.activeRoot?{...j,start:j.start||t,trip:[...j.trip,index]}:j);
+  commit({nodes,cells,cellRoots,cellRootSets,route,trip,journeys,dirty:true});save();return state.nodes[index];
 }
 export function previewJourneyNode(t,d) { commit({upcoming:{t,d},dirty:true}); }
 export function clearJourneyPreview() { commit({upcoming:null,dirty:true}); }
 export function revealRoute(cellIds) {
-  const cells=state.cells.slice(),guide=state.guide.slice(),route=state.route.slice();
+  const cells=state.cells.slice(),guide=state.guide.slice(),route=state.route.slice(),cellRoots=state.cellRoots.slice(),cellRootSets=state.cellRootSets.slice();
   for(const cell of cellIds)if(validCell(cell)&&route.at(-1)!==cell) {
-    route.push(cell);guide[cell]=1;if(!cells[cell])cells[cell]=PLAN;
+    route.push(cell);guide[cell]=1;if(!cells[cell])cells[cell]=PLAN;if(cellRoots[cell]<0&&state.activeRoot>=0)cellRoots[cell]=state.activeRoot;
+    addRootToCell(cellRootSets,cell,state.activeRoot);
   }
-  commit({cells,guide,route,dirty:true});
+  commit({cells,guide,route,cellRoots,cellRootSets,dirty:true});
 }
 export function holdJourney() { commit({holding:true,dirty:true}); }
 export function completeJourney() {
@@ -97,6 +126,10 @@ export function finishExtension() {
 export function updateNodeDescription(index,d) {
   if(!state.nodes[index])return;
   const nodes=state.nodes.slice();nodes[index]={...nodes[index],d};commit({nodes,dirty:true});save();
+}
+export function awakenCurrentNode(now=performance.now()) {
+  const index=state.nodes.findIndex(n=>nodeCell(n)===state.here);if(index<0||state.nodes[index].awakened)return false;
+  const nodes=state.nodes.slice();nodes[index]={...nodes[index],awakened:true};commit({nodes,alienJumpAt:now,dirty:true});save();return true;
 }
 export function visitCurrent() {
   if(state.cells[state.here]!==BLDG)return false;
@@ -127,6 +160,7 @@ export function tickAnimation(now) {
   const alpha=1-Math.pow(.65,dt/(1000/60)*110/interval);
   const blinkOn=Math.floor(now/450)%2===0,patch={};let follow=null;
   if(blinkOn!==state.blinkOn){patch.blinkOn=blinkOn;if(state.route.length)patch.dirty=true;}
+  if(state.alienJumpAt&&now-state.alienJumpAt<760)patch.dirty=true;
   const active=state.walker&&state.here>=0&&!state.revealing;
   if(active) {
     const target=cellVec(state.here);

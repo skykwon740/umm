@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {fileURLToPath} from 'node:url';
 import {state,load,save,beginJourney,completeJourney,addJourneyNode,visitCurrent,queueWalk,nextWalkStep,
   stepTo,tickAnimation,initializeWalker,updateNodeDescription,ENTERED} from '../src/core/state.js';
-import {FACE,nodeCell,vec} from '../src/core/grid.js';
+import {CELL_COUNT,nodeCell,vec} from '../src/core/grid.js';
 import {camera,resizeCamera,initializeCamera,focusCamera,rotateCamera,zoomCamera,tickCamera,walkRadius} from '../src/world/camera.js';
 import {createJourney} from '../src/journey.js';
 import {inspectArchitecture,readSources} from '../scripts/architecture-wiki.mjs';
@@ -10,7 +10,7 @@ import {inspectArchitecture,readSources} from '../scripts/architecture-wiki.mjs'
 const data=new Map();
 globalThis.localStorage={getItem:key=>data.get(key)||null,setItem:(key,value)=>data.set(key,value)};
 function reset(){
-  data.set('webglobe3',JSON.stringify({c:'0'.repeat(6*FACE),n:[],r:[],t:[],h:-1,g:[]}));
+  data.set('webglobe3',JSON.stringify({c:'0'.repeat(CELL_COUNT),n:[],r:[],t:[],h:-1,g:[]}));
   assert.equal(load(),true);
 }
 reset();
@@ -32,7 +32,7 @@ const queue=[state.here];queueWalk(queue);queue.push(0);
 assert.equal(state.walkPath.length,1);assert.equal(nextWalkStep(),state.here);assert.equal(nextWalkStep(),undefined);
 save();const saved=data.get('webglobe3');beginJourney();assert.equal(state.here,-1);assert.equal(load(),true);
 assert.equal(state.nodes[0].d,'새 설명');assert.equal(state.cells[state.here],ENTERED);
-const restored=state;data.set('webglobe3',JSON.stringify({c:'9'.repeat(6*FACE)}));
+const restored=state;data.set('webglobe3',JSON.stringify({c:'9'.repeat(CELL_COUNT)}));
 assert.equal(load(),false);assert.equal(state,restored);data.set('webglobe3',saved);
 initializeWalker();stepTo(state.here,1,100);assert.equal(tickAnimation(250).canStep,true);
 assert.equal(save({setItem(){throw new Error('quota');}}),false);
