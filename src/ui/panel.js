@@ -4,11 +4,16 @@ export const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'
 const chainEl=document.getElementById('chain'),pctEl=document.getElementById('pct');
 const meterEl=document.querySelector('#meter i'),hintEl=document.getElementById('hint');
 export function setStatus(message='') { document.getElementById('status').textContent=message; }
-export function setJourneyBusy(busy) { document.getElementById('goBtn').disabled=busy; }
+export function setJourneyBusy(busy) { document.getElementById('goBtn').disabled=busy;document.getElementById('again').disabled=busy; }
 export function bindSearch(onSearch) {
   const input=document.getElementById('q');
+  input.addEventListener('input',()=>{document.getElementById('searchCount').textContent=`${input.value.length}/100`;});
+  input.addEventListener('keydown',event=>{if(event.key==='Enter'&&event.isComposing)event.preventDefault();});
   document.getElementById('bar').addEventListener('submit',event=>{
-    event.preventDefault();input.blur();onSearch(input.value);
+    event.preventDefault();if(state.busy)return;
+    const query=input.value.trim();
+    if(!query||query.length>100){setStatus('관심사를 1~100자로 입력해 주세요.');input.focus();return;}
+    input.blur();onSearch(query);
   });
 }
 function showChain() {
@@ -32,10 +37,10 @@ function showHint() {
   let items;
   if (state.holding) items = [['', '마지막 건물 도착']];
   else if (state.pending) items = [['', '루트 찾는 중…']];
-  else if (state.here < 0) items = [['Enter', '관심사 입력 후 출발'], ...look];
-  else if (onNode && state.cells[state.here] === BLDG) items = [['Enter', '위키백과 열기'], ['', '또는 구글 이미지 선택'], ['↑↓←→', '이동']];
+  else if (state.here < 0) items = [['클릭', '관심사 입력 후 출발'], ...look];
+  else if (onNode && state.cells[state.here] === BLDG) items = [['클릭', '위키백과 열기'], ['', '또는 구글 이미지 선택'], ['클릭', '길이나 건물로 이동']];
   else if (state.here === state.route[state.route.length - 1]) items = [['', '새 관심사를 입력하거나 이 주소에서 다시 출발']];
-  else items = [['↑↓←→', '이동'], ['클릭', '길 위 타일로 이동'], ...look];
+  else items = [['클릭', '길이나 건물로 이동'], ...look];
   hintEl.innerHTML = items.map(([k, t]) => `<span>${k ? `<kbd>${k}</kbd>` : ''}${t}</span>`).join('');
 }
 

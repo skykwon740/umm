@@ -1,9 +1,10 @@
 import {state,ENTERED,requestRedraw,visitCurrent} from '../core/state.js';
-import {vec, nodeCell} from '../core/grid.js';
+import {vec, nodeCell,cellVec} from '../core/grid.js';
 import {cellPx, project, pose, PX, FLAG_SPRITE} from '../world/renderer.js';
 import {wikiURL, imageSearchURL} from '../content/result-links.js';
 import {esc, showChain} from './panel.js';
 const labelsEl=document.getElementById('labels');
+let lastLabels='';
 const resultEl=document.getElementById('resultActions'),againEl=document.getElementById('again');
 const wikiLink=document.getElementById('openWiki');
 const imageLink=document.getElementById('openImages'),titleEl=document.getElementById('resultTitle');
@@ -17,6 +18,7 @@ export function createResults(onRestart) {
       wikiLink.href=wikiURL(n);imageLink.href=imageSearchURL(n);
       wikiLink.setAttribute('aria-label',n.t+' 위키백과 열기 (새 탭)');
       imageLink.setAttribute('aria-label',n.t+' 구글 이미지 검색 (새 탭)');
+      againEl.textContent=`‘${n.t}’에서 다시 출발`;
       againEl.onclick=()=>onRestart(n.t,n.lang);
     }
     showChain();
@@ -46,7 +48,12 @@ function drawLabels() {
     if (nodeCell(n) === state.here && !resultEl.hidden) { placeOpen(lx * PX, ly * PX); return; }   // the button takes the label's place
     html += `<span class="${cls}" style="left:${lx*PX}px;top:${ly*PX - 4}px">${esc(n.t)}</span>`;
   });
-  labelsEl.innerHTML = html;
+  const destination=state.walkPath.at(-1);
+  if(destination!==undefined) {
+    const p=project(cellVec(destination));
+    if(p)html+=`<span class="lb destination" style="left:${p.x*PX}px;top:${p.y*PX}px">◎ 목적지</span>`;
+  }
+  if(lastLabels!==html){labelsEl.innerHTML=html;lastLabels=html;}
 }
 // the link button floats over the building, kept inside the area the panels leave free
 function placeOpen(x, y) {

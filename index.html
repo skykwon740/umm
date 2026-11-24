@@ -27,14 +27,28 @@
 <aside id="side">
   <div id="controls">
     <form id="bar">
-      <input id="q" aria-label="탐험을 시작할 관심사" placeholder="관심사" autocomplete="off">
+      <input id="q" aria-label="탐험을 시작할 관심사" placeholder="관심사" autocomplete="off" maxlength="100" aria-describedby="searchHelp searchCount">
       <button id="goBtn">출발</button>
     </form>
+    <p id="searchHelp">관심사를 1~100자로 입력해 주세요.</p>
+    <p id="searchCount">0/100</p>
     <div id="actions">
+      <button id="follow" type="button">캐릭터로 돌아가기</button>
       <button id="again" type="button" hidden>이 주소에서 다시 출발</button>
     </div>
   </div>
   <p id="status" role="status" aria-live="polite"></p>
+  <section id="interestPanel" aria-label="현재 단어의 관심 표시와 메모" hidden>
+    <button id="heart" type="button" aria-pressed="false">♡ 관심 표시</button>
+    <button id="memoToggle" type="button" aria-expanded="false" aria-controls="memoEditor">메모</button>
+    <form id="memoEditor" hidden>
+      <label for="memoText">메모 (다른 장소로 이동하기 전에 저장해 주세요)</label>
+      <textarea id="memoText" maxlength="500" rows="4" aria-describedby="memoCount"></textarea>
+      <span id="memoCount">0/500</span>
+      <button type="submit">메모 저장</button>
+    </form>
+    <p id="memoStatus" role="status"></p>
+  </section>
   <div id="routeBox"><h2>루트</h2><div id="chain"></div></div>
   <div id="hint"></div>
 </aside>
