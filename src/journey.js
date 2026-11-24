@@ -1,5 +1,5 @@
 import {state,beginJourney,addJourneyNode,previewJourneyNode,clearJourneyPreview,revealRoute,holdJourney,completeJourney,
-  beginExtension,finishExtension} from './core/state.js';
+  beginExtension,finishExtension,connectRouteToNetwork} from './core/state.js';
 import {vec,ll,cellVec,cellOf,slerp,hash,nodeCell,DEG} from './core/grid.js';
 import * as wikipedia from './content/wikipedia.js';
 
@@ -31,7 +31,8 @@ export function createJourney({onStart,onChange,onFocus,onArrive,onMessage,onFin
     try {
       const first=await wiki.search(lang,query);
       if(!first){onMessage(query+' 문서를 찾지 못했습니다. 다른 관심사를 입력해 주세요.');return;}
-      addJourneyNode(first,lang,await wiki.describe(lang,first));onChange();
+      const node=addJourneyNode(first,lang,await wiki.describe(lang,first));
+      connectRouteToNetwork(nodeCell(node));onChange();
     } catch {
       onMessage('경로를 불러오지 못했습니다. 연결을 확인하고 다시 출발해 주세요.');
     } finally {

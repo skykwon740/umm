@@ -1,4 +1,4 @@
-import {CELL_COUNT,cellVec,hash,ll,nodeCell,vec,cellOf,legacyCellVec} from './grid.js';
+import {CELL_COUNT,cellVec,cellNeighbours,hash,ll,nodeCell,vec,cellOf,legacyCellVec} from './grid.js';
 
 export const UNKNOWN=0,PLAN=1,ROAD=2,BLDG=3,ENTERED=4,GUIDE=5,GUIDE_OFF=6;
 const validCell=c=>Number.isInteger(c)&&c>=0&&c<CELL_COUNT;
@@ -66,6 +66,12 @@ export function load(storage) {
     const cellRootSets=Array.from({length:CELL_COUNT},(_,c)=>Array.isArray(s.cs?.[c])?s.cs[c].filter(root=>Number.isInteger(root)&&root>=0&&root<journeys.length):cellRoots[c]>=0&&cellRoots[c]<journeys.length?[cellRoots[c]]:[]);
     const activeRoot=journeys.length-1;
     state=freeze({...initialState(),nodes,route:migratedRoute,trip,here,guide,cells,cellRoots,cellRootSets,journeys,activeRoot});
+    let repaired=false;
+    for(let root=1;root<journeys.length;root++) {
+      const first=journeys[root].trip[0],node=nodes[first];
+      if(node&&connectRouteToNetwork(nodeCell(node),root))repaired=true;
+    }
+    if(repaired)save();
     return true;
   } catch { return false; }
 }
@@ -107,6 +113,32 @@ export function revealRoute(cellIds) {
     addRootToCell(cellRootSets,cell,state.activeRoot);
   }
   commit({cells,guide,route,cellRoots,cellRootSets,dirty:true});
+}
+export function connectRouteToNetwork(startCell,root=state.activeRoot) {
+  if(!validCell(startCell)||root<1)return false;
+  const targets=new Set();
+  for(let c=0;c<CELL_COUNT;c++) {
+    const owners=state.cellRootSets[c]??[];
+    if(c!==startCell&&state.cells[c]>=ROAD&&(owners.some(owner=>owner<root)||owners.length===0))targets.add(c);
+  }
+  if(!targets.size)return false;
+  const previous=new Map([[startCell,-1]]),queue=[startCell];let target=-1;
+  for(let i=0;i<queue.length&&target<0;i++)for(const next of cellNeighbours(queue[i])) {
+    if(previous.has(next))continue;
+    previous.set(next,queue[i]);
+    if(targets.has(next)){target=next;break;}
+    queue.push(next);
+  }
+  if(target<0)return false;
+  const path=[];for(let c=target;c!==-1;c=previous.get(c))path.push(c);path.reverse();
+  const cells=state.cells.slice(),cellRoots=state.cellRoots.slice(),cellRootSets=state.cellRootSets.slice(),route=state.route.slice();
+  for(const cell of path.slice(1)) {
+    if(!cells[cell]||cells[cell]===PLAN)cells[cell]=ROAD;
+    if(cellRoots[cell]<0)cellRoots[cell]=root;
+    addRootToCell(cellRootSets,cell,root);
+    if(root===state.activeRoot&&route.at(-1)!==cell)route.push(cell);
+  }
+  commit({cells,cellRoots,cellRootSets,route,dirty:true});return true;
 }
 export function holdJourney() { commit({holding:true,dirty:true}); }
 export function completeJourney() {
