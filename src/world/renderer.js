@@ -1,5 +1,5 @@
 import { N, DEG, RAD, vec, cellOf, cellVec, nodeCell } from '../core/grid.js';
-import { state, PLAN, ROAD, BLDG, ENTERED, GUIDE, GUIDE_OFF, routeColor, requestRedraw } from '../core/state.js';
+import { state, PLAN, ROAD, BLDG, ENTERED, routeColor, requestRedraw } from '../core/state.js';
 import {camera as view,resizeCamera} from './camera.js';
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const fx = document.getElementById('fx'), fctx = fx.getContext('2d');
@@ -37,8 +37,9 @@ function awakeAlien(color) {
   for(let i=0;i<pixels.data.length;i+=4){const r=pixels.data[i],green=pixels.data[i+1],b=pixels.data[i+2];if(r>green*1.08&&r>b*1.05&&pixels.data[i+3]){const k=(r+green+b)/(3*255);pixels.data[i]=Math.round(t[0]*k);pixels.data[i+1]=Math.round(t[1]*k);pixels.data[i+2]=Math.round(t[2]*k);}}
   g.putImageData(pixels,0,0);awakeCache.set(color,c);return c;
 }
-function colorForCell(cell,variant=0) {
-  const roots=state.cellRootSets?.[cell]??[],root=roots.length?roots[variant%roots.length]:state.cellRoots[cell];
+// 여러 루트가 겹친 칸은 첫 루트 색
+function colorForCell(cell) {
+  const roots=state.cellRootSets?.[cell]??[],root=roots.length?roots[0]:state.cellRoots[cell];
   return root>=0?(state.journeys[root]?.color||routeColor(root)):'#45acd4';
 }
 const routePalettes=new Map();
@@ -88,15 +89,20 @@ function render(now, drawLabels) {
       const c = cellOf(wx, wy, wz);
       const edge = (left >= 0 && left !== c) || (above[x] >= 0 && above[x] !== c);
       left = above[x] = c;
-      const type = state.guide[c] && state.cells[c] < BLDG ? (state.blinkOn ? GUIDE : GUIDE_OFF) : state.cells[c];
+      // 예전 저장의 안내(guide) 칸도 깜빡이지 않고 저장된 종류 그대로 그린다
+      const type = state.cells[c];
+      const rootType=type===PLAN||type===ROAD||type===BLDG||type===ENTERED;
+      const k = y*W + x;
+      if (rootType) {
+        // 루트 칸은 루트 색 한 가지로 평평하게 (명암·반짝 점·줄무늬 없음). 경계선만 한 단계 어둡게
+        const pal=(state.cellRootSets?.[c]??[]).length||state.cellRoots[c]>=0?colorPalette(colorForCell(c)):PAL[type];
+        buf[k] = grid && edge ? pal[1] : pal[2]; continue;
+      }
       let lv = dx*L[0] + dy*L[1] + z*L[2];
       lv = lv > 0.75 ? 3 : lv > 0.45 ? 2 : lv > 0.1 ? 1 : 0;
-      const rootType=type===PLAN||type===ROAD||type===BLDG||type===ENTERED||type===GUIDE||type===GUIDE_OFF;
-      const roots=state.cellRootSets?.[c]??[],variant=Math.floor((x+y+c*3)/5);
-      const pal=rootType&&roots.length?colorPalette(colorForCell(c,variant)):PAL[type];
-      const k = y*W + x;
+      const pal=PAL[type];
       if (grid && edge) { buf[k] = type ? pal[Math.max(0, lv - 1)] : pal[0]; continue; }
-      buf[k] = rootType&&((x+y+c*3)%9===0)?pal[Math.min(3,lv+1)]:pal[lv];
+      buf[k] = pal[lv];
     }
   }
   fctx.clearRect(0, 0, W, H);

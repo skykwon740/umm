@@ -3,7 +3,7 @@ import {fileURLToPath} from 'node:url';
 import {state,load,save,beginJourney,completeJourney,addJourneyNode,visitCurrent,queueWalk,nextWalkStep,
   stepTo,tickAnimation,initializeWalker,updateNodeDescription,ENTERED} from '../src/core/state.js';
 import {CELL_COUNT,nodeCell,vec} from '../src/core/grid.js';
-import {camera,resizeCamera,initializeCamera,focusCamera,rotateCamera,zoomCamera,tickCamera,walkRadius} from '../src/world/camera.js';
+import {camera,resizeCamera,initializeCamera,focusCamera,rotateCamera,zoomCamera,tickCamera} from '../src/world/camera.js';
 import {createJourney} from '../src/journey.js';
 import {inspectArchitecture,readSources} from '../scripts/architecture-wiki.mjs';
 
@@ -41,8 +41,9 @@ resizeCamera(300,200);initializeCamera(vec(20,0),false);
 assert.throws(()=>{camera.tR=0;},TypeError);
 const oldCamera=camera;rotateCamera(0,1e6);assert.equal(camera.lat,85);assert.equal(oldCamera.lat,20);
 zoomCamera(-1e6);assert.equal(camera.tR,1400);zoomCamera(1e6);assert.equal(camera.tR,25);
-initializeCamera(vec(0,-179),true);focusCamera({lat:0,lon:179},'walk');
-assert.equal(camera.tR,walkRadius);const oldLon=camera.lon;assert.equal(tickCamera(),true);
+// 팀 결정(알파 피드백 6): 카메라는 스스로 줌인하지 않는다. 사용자가 바꾼 줌을 유지한다.
+const zoomBefore=camera.tR;initializeCamera(vec(0,-179),true);focusCamera({lat:0,lon:179},'walk');
+assert.equal(camera.tR,zoomBefore);const oldLon=camera.lon;assert.equal(tickCamera(),true);
 assert.ok(Math.abs(camera.lon-oldLon)<1,'Camera takes the short path across the date line');
 
 function controller(wiki) {
@@ -65,12 +66,15 @@ await success.journey.run('춤');
 assert.deepEqual(tripTitles(),['춤']);
 assert.equal(state.here,nodeCell(state.nodes[0]));assert.equal(state.pending,false);assert.equal(state.revealing,false);
 assert.equal(success.events.at(-1),'arrive');assert.deepEqual(success.messages,[]);assert.deepEqual(success.languages,['ko']);
-// 가족을 고르면 지금 외계인에서 길이 이어지고, 캐릭터와 이전 경로는 그대로다
-const start=state.here,routeBefore=state.route.slice();
+// 가족을 고르면 새 외계인이 놓이고, 캐릭터와 이전 경로는 그대로다.
+// 팀 결정(알파 피드백 1): 새 외계인까지 길을 미리 공개하지 않는다(안내·깜빡임 칸 없음). 이전 기대값 '공개된 길'은 이 결정으로 바뀌었다.
+const start=state.here,routeBefore=state.route.slice(),cellsBefore=state.cells.slice();
 const added=await success.journey.extend('민속무용','ko','민속무용 설명');
 assert.equal(added.t,'민속무용');assert.deepEqual(tripTitles(),['춤','민속무용']);
 assert.equal(state.here,start);assert.deepEqual(state.route.slice(0,routeBefore.length),routeBefore);
-assert.ok(state.route.length>routeBefore.length+1,'The revealed road leads to the new alien');assert.equal(state.route.at(-1),nodeCell(added));
+assert.equal(state.route.length,routeBefore.length+1,'No road is revealed in advance');assert.equal(state.route.at(-1),nodeCell(added));
+assert.equal(state.guide.some(Boolean),false,'No blinking guide cells');
+assert.deepEqual(state.cells.flatMap((t,c)=>t!==cellsBefore[c]?[c]:[]),[nodeCell(added)],'Only the new alien cell appears');
 assert.equal(state.nodes.at(-1).d,'민속무용 설명');
 assert.equal(state.busy,false);assert.equal(state.revealing,false);assert.equal(state.holding,false);assert.equal(state.upcoming,null);
 assert.equal(success.events.at(-1),'arrive');
