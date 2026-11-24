@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {loadInterests,getInterest,saveInterest} from '../src/core/interests.js';
 import {camera,initializeCamera,rotateCamera,followWalker,resumeTracking,tickCamera} from '../src/world/camera.js';
 import {state,load,initializeWalker,queueWalk,tickAnimation,stepTo,flushMovementSave} from '../src/core/state.js';
-import {FACE,N,cellVec} from '../src/core/grid.js';
+import {CELL_COUNT,cellVec} from '../src/core/grid.js';
 const data=new Map(),storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v)};
 globalThis.localStorage=storage;
 loadInterests(storage);
@@ -26,7 +26,7 @@ function cameraAt(hz) {
   return camera.lon;
 }
 assert.ok(Math.abs(cameraAt(30)-cameraAt(60))<1e-6);
-const a=2*FACE+12*N+10,cells=Array(6*FACE).fill(0);for(let i=0;i<90;i++)cells[a+i]=2;
+const a=500,cells=Array(CELL_COUNT).fill(0);for(let i=0;i<90;i++)cells[a+i]=2;
 function reset(){storage.setItem('webglobe3',JSON.stringify({c:cells.join(''),n:[],r:[],t:[],h:a}));load();initializeWalker();}
 reset();stepTo(a+1,1,1000);queueWalk([]);assert.equal(tickAnimation(1050).canStep,false);
 queueWalk(Array(80).fill(a+2));assert.equal(tickAnimation(1050).canStep,true);

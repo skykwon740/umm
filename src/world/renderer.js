@@ -1,5 +1,5 @@
-import { N, DEG, RAD, vec, cellOf, cellVec, hash, nodeCell } from '../core/grid.js';
-import { state, BLDG, ENTERED, GUIDE, GUIDE_OFF, requestRedraw } from '../core/state.js';
+import { N, DEG, RAD, vec, cellOf, cellVec, nodeCell } from '../core/grid.js';
+import { state, PLAN, ROAD, BLDG, ENTERED, GUIDE, GUIDE_OFF, routeColor, requestRedraw } from '../core/state.js';
 import {camera as view,resizeCamera} from './camera.js';
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const fx = document.getElementById('fx'), fctx = fx.getContext('2d');
@@ -21,6 +21,33 @@ function resize() {
 }
 const rgb = h => { const n = parseInt(h.slice(1), 16); return 0xff000000 | ((n & 255) << 16) | (n & 0xff00) | (n >> 16); };
 const BG = rgb('#16161c');
+function loadSprite(path,w,h,onLoad=()=>{}) {
+  const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+  const image=document.createElement('img');image.onload=()=>{const g=canvas.getContext('2d');g.imageSmoothingEnabled=false;g.drawImage(image,0,0,w,h);onLoad();requestRedraw();};
+  image.src=new URL(path,import.meta.url);return canvas;
+}
+const ALIEN_IDLE=loadSprite('../../assets/alien-idle.png',16,20);
+const ALIEN_AWAKE_SOURCE=loadSprite('../../assets/alien-awake.png',16,20,()=>awakeCache.clear());
+const ASTRONAUT=loadSprite('../../assets/astronaut.png',14,16);
+const awakeCache=new Map();
+function awakeAlien(color) {
+  if(awakeCache.has(color))return awakeCache.get(color);
+  const c=document.createElement('canvas');c.width=ALIEN_AWAKE_SOURCE.width;c.height=ALIEN_AWAKE_SOURCE.height;
+  const g=c.getContext('2d');g.drawImage(ALIEN_AWAKE_SOURCE,0,0);const pixels=g.getImageData(0,0,c.width,c.height),n=parseInt(color.slice(1),16),t=[n>>16&255,n>>8&255,n&255];
+  for(let i=0;i<pixels.data.length;i+=4){const r=pixels.data[i],green=pixels.data[i+1],b=pixels.data[i+2];if(r>green*1.08&&r>b*1.05&&pixels.data[i+3]){const k=(r+green+b)/(3*255);pixels.data[i]=Math.round(t[0]*k);pixels.data[i+1]=Math.round(t[1]*k);pixels.data[i+2]=Math.round(t[2]*k);}}
+  g.putImageData(pixels,0,0);awakeCache.set(color,c);return c;
+}
+function colorForCell(cell,variant=0) {
+  const roots=state.cellRootSets?.[cell]??[],root=roots.length?roots[variant%roots.length]:state.cellRoots[cell];
+  return root>=0?(state.journeys[root]?.color||routeColor(root)):'#45acd4';
+}
+const routePalettes=new Map();
+function colorPalette(hex) {
+  if(routePalettes.has(hex))return routePalettes.get(hex);
+  const n=parseInt(hex.slice(1),16),base=[n>>16&255,n>>8&255,n&255];
+  const shades=[.56,.76,1,1.24].map(k=>{const c=base.map(v=>Math.round(k<1?v*k:v+(255-v)*(k-1)/.24));return rgb('#'+c.map(v=>v.toString(16).padStart(2,'0')).join(''));});
+  routePalettes.set(hex,shades);return shades;
+}
 const PAL = [
   ['#1c262e', '#243039', '#2c3a45', '#354552'],   // unknown
   ['#2f8fb5', '#45acd4', '#6fdcff', '#9be8ff'],   // road not walked yet: UI colour
@@ -30,86 +57,8 @@ const PAL = [
   ['#c4c8cc', '#dcdfe2', '#f2f3f4', '#ffffff'],   // route guide, blinking over whatever is below
   ['#5a6068', '#6e747c', '#868c94', '#a0a6ae'],   // route guide, off beat
 ].map(p => p.map(rgb));
-// line-art buildings: # navy outline / windows / shaded side, w wall. The address decides which one.
-const BLDGC = { '#': '#0e1a45', w: '#e4e9f2' };
-const BLDGS = [[
-  '.....###.....',
-  '......#......',
-  '#############',
-  '#wwwwwwwwww##',
-  '#ww##ww##ww##',
-  '#ww##ww##ww##',
-  '#wwwwwwwwww##',
-  '#ww##ww##ww##',
-  '#ww##ww##ww##',
-  '#wwwwwwwwww##',
-  '#wwwww##www##',
-  '#wwwww##www##',
-  '#wwwww##www##',
-  '#############',
-], [
-  '...###.........',
-  '....#..........',
-  '###############',
-  '#wwwwwwwwwwww##',
-  '#www##www##ww##',
-  '#www##www##ww##',
-  '#wwwwwwwwwwww##',
-  '#www##www##ww##',
-  '#www##www##ww##',
-  '#wwwwwwww##ww##',
-  '###############',
-], [
-  '.........###...',
-  '..........#....',
-  '.......########',
-  '.......#wwwww##',
-  '.......#w##ww##',
-  '########wwwww##',
-  '#wwwwww#w##ww##',
-  '#wwwwww#wwwww##',
-  '#ww##ww#w##ww##',
-  '#ww##ww#wwwww##',
-  '#wwwwww#ww##w##',
-  '#wwwwww#ww##w##',
-  '#wwwwww#ww##w##',
-  '###############',
-]];
-const BLDG_TINY = ['..#..', '#####', '#www#', '#w#w#', '#www#', '#####'];   // seen from far away
-// swallowtail flag, base of the pole at the bottom-left
-const FLAG_SPRITE = [
-  '#.#######',
-  '#.#####..',
-  '#.####...',
-  '#.#####..',
-  '#.#######',
-  '#........',
-  '#........',
-  '#........',
-];
 const L = (() => { const v = [-0.45, 0.55, 0.7], m = Math.hypot(...v); return v.map(x => x / m); })();
 
-// character (facing right): O cap, X edge, W body, B/E eye black + white
-const SPRITE = [
-  '...OOOOO...',
-  '..OOOOOOOO.',
-  '..XXXXXXX..',
-  '.XWWWWWWWX.',
-  '.XWWBEWBEX.',
-  '.XWWWWWWWX.',
-  '..XWWWWWX..',
-  '...XWWWX...',
-];
-const LEGS = [['...XWXWX...', '...XX.XX...'], ['..XWX.XWX..', '..XX...XX..']];
-const RAINBOW = ['#b2d620', '#f0925a', '#fa4fa8', '#c050d8', '#6a50e0', '#3038c0'].map(h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)));
-// diagonal colour run from the top left down to the feet, pixels washed out unevenly like a mosaic
-function rainbow(x, y, pale) {
-  const t = Math.min(0.999, (x / 10 * 0.6 + y / 9) / 1.6) * (RAINBOW.length - 1), i = Math.floor(t), f = t - i;
-  const wash = pale + ((x * 7 + y * 13) % 5) / 5 * 0.18;
-  const c = RAINBOW[i].map((v, k) => v + (RAINBOW[i + 1][k] - v) * f).map(v => Math.round(v + (255 - v) * wash));
-  return `rgb(${c})`;
-}
-const SPC = { O: (x, y) => rainbow(x, y, 0.1), X: (x, y) => rainbow(x, y, 0.2), W: (x, y) => rainbow(x, y, 0), B: '#0a0a0a', E: '#ffffff' };
 function makeSprite(rows, colors, ring) {
   const pad = ring ? 1 : 0, c = document.createElement('canvas');
   c.width = rows[0].length + pad * 2; c.height = rows.length + pad * 2;
@@ -119,9 +68,6 @@ function makeSprite(rows, colors, ring) {
   each((x, y, ch) => { const c = colors[ch]; g.fillStyle = typeof c === 'function' ? c(x, y) : c; g.fillRect(x, y, 1, 1); });
   return c;
 }
-const BLDG_IMGS = BLDGS.map(b => makeSprite(b, BLDGC)), BLDG_TINY_IMG = makeSprite(BLDG_TINY, BLDGC);
-const FLAG_IMG = makeSprite(FLAG_SPRITE, { '#': '#6fdcff' }, '#16161c');
-const CHAR_IMGS = LEGS.map(l => makeSprite(SPRITE.concat(l), SPC));
 
 function render(now, drawLabels) {
   const cx = CX, cy = CY, R = view.R;
@@ -145,29 +91,29 @@ function render(now, drawLabels) {
       const type = state.guide[c] && state.cells[c] < BLDG ? (state.blinkOn ? GUIDE : GUIDE_OFF) : state.cells[c];
       let lv = dx*L[0] + dy*L[1] + z*L[2];
       lv = lv > 0.75 ? 3 : lv > 0.45 ? 2 : lv > 0.1 ? 1 : 0;
-      const pal = PAL[type];
+      const rootType=type===PLAN||type===ROAD||type===BLDG||type===ENTERED||type===GUIDE||type===GUIDE_OFF;
+      const roots=state.cellRootSets?.[c]??[],variant=Math.floor((x+y+c*3)/5);
+      const pal=rootType&&roots.length?colorPalette(colorForCell(c,variant)):PAL[type];
       const k = y*W + x;
       if (grid && edge) { buf[k] = type ? pal[Math.max(0, lv - 1)] : pal[0]; continue; }
-      buf[k] = pal[lv];
+      buf[k] = rootType&&((x+y+c*3)%9===0)?pal[Math.min(3,lv+1)]:pal[lv];
     }
   }
   fctx.clearRect(0, 0, W, H);
-  drawBuildings();
+  drawAliens(now);
   if (state.walker) drawSprite(now);
   ctx.putImageData(img, 0, 0);
   drawLabels();
 }
-// buildings and flags point out from the globe's centre, like ticks around a dial. The camera is
-// treated as tilted so the middle of the view leans gently instead of fanning out from one point.
+// Aliens point out from the globe's centre, like ticks around a dial.
 function pose(p, n) {
-  const px = cellPx(), s = px >= 20 ? 2 : 1;
-  const sprite = px >= 10 ? BLDG_IMGS[hash(n.t) % BLDG_IMGS.length] : BLDG_TINY_IMG;
+  const px=cellPx(),s=px>=28?2:1,cell=nodeCell(n),color=colorForCell(cell);
+  const sprite=n.awakened?awakeAlien(color):ALIEN_IDLE;
   const sx = (p.x - CX) / view.R, sy = (p.y - CY) / view.R;
   const ax = sx, ay = sy * 0.8 - p.z * 0.6, m = Math.hypot(ax, ay);
   const ux = m < 1e-3 ? 0 : ax / m, uy = m < 1e-3 ? -1 : ay / m;
   const off = -px * 0.25;              // foot of the building sits inside its tile
-  // far away the flag shrinks with the building so it doesn't outweigh it
-  return { s, fs: px >= 10 ? s : 0.6, ux, uy, sprite, h: sprite.height * s, bx: p.x + ux * off, by: p.y + uy * off };
+  return { s, ux, uy, sprite, h: sprite.height * s, bx: p.x + ux * off, by: p.y + uy * off };
 }
 // sprites go on a finer layer so their pixel blocks rotate cleanly
 function place(img, x, y, ux, uy, s, ax) {
@@ -176,7 +122,7 @@ function place(img, x, y, ux, uy, s, ax) {
   fctx.drawImage(img, -ax * s, -img.height * s, img.width * s, img.height * s);
   fctx.restore();
 }
-function drawBuildings() {
+function drawAliens(now) {
   const list = [];
   for (const n of state.nodes) {
     const p = project(vec(n.lat, n.lon));
@@ -184,16 +130,14 @@ function drawBuildings() {
   }
   list.sort((a, b) => a[0].z - b[0].z);   // limb first, so the ones facing the camera overlap them
   for (const [p, n] of list) {
-    const { s, fs, ux, uy, sprite, h, bx, by } = pose(p, n);
-    place(sprite, bx, by, ux, uy, s, sprite.width / 2);
-    const roof = h - 2 * s;   // planted where the antenna meets the roof
-    if (state.cells[nodeCell(n)] === ENTERED) place(FLAG_IMG, bx + ux * roof, by + uy * roof, ux, uy, fs, 1);
+    const { s, ux, uy, sprite, h, bx, by } = pose(p, n);
+    const jumping=state.alienJumpAt&&now-state.alienJumpAt<760?Math.abs(Math.sin((now-state.alienJumpAt)/760*Math.PI))*cellPx()*.33:0;
+    place(sprite,bx,by-jumping,ux,uy,s,sprite.width/2);
   }
 }
 function drawSprite(now) {
   const p = project(state.walker); if (!p) return;
-  const s = cellPx() >= 18 ? 2 : 1;
-  const img = CHAR_IMGS[now - state.lastStep < 140 ? 1 : 0];
+  const s=cellPx()>=28?2:1,img=ASTRONAUT;
   fctx.save();
   fctx.translate(Math.round(p.x), Math.round(p.y + cellPx() * 0.25));
   fctx.scale(state.facing, 1);
@@ -216,4 +160,4 @@ function unproject(sx, sy) {           // screen px → cell id (or -1)
   return cellOf(dx*co + z1*so, wy, -dx*so + z1*co);
 }
 
-export { cv, PX, resize, cellPx, render, pose, project, unproject, FLAG_SPRITE };
+export { cv, PX, resize, cellPx, render, pose, project, unproject };
