@@ -4,7 +4,7 @@ export const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'
 const chainEl=document.getElementById('chain'),pctEl=document.getElementById('pct');
 const meterEl=document.querySelector('#meter i'),hintEl=document.getElementById('hint');
 export function setStatus(message='') { document.getElementById('status').textContent=message; }
-export function setJourneyBusy(busy) { document.getElementById('goBtn').disabled=busy;document.getElementById('again').disabled=busy; }
+export function setJourneyBusy(busy) { document.getElementById('goBtn').disabled=busy; }
 export function bindSearch(onSearch) {
   const input=document.getElementById('q');
   input.addEventListener('input',()=>{document.getElementById('searchCount').textContent=`${input.value.length}/100`;});
