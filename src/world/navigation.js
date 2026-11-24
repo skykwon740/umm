@@ -1,4 +1,4 @@
-import {cellNeighbours} from '../core/grid.js';
+import {cellNeighbours,cellVec} from '../core/grid.js';
 import {state,queueWalk,stepTo} from '../core/state.js';
 export function createNavigation({project,onArrive,onMessage=()=>{}}) {
   let topology='',drawn=[],adjacency=new Map();
