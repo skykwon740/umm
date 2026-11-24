@@ -117,6 +117,8 @@ export function createTutorial({radio,onFinish}) {
         await guard(radio.line('이 외계인은 가족의 행방을 모른다. 다른 이름으로 다시 출발하라.'));
         continue;   // back to 1/4
       }
+      // 좁은 화면의 아래 판은 가족 칸이 접힌 아래쪽에 있다. 어두운 막이 스크롤을 막으므로 먼저 보이게 한다
+      $(HOOKS.family)?.scrollIntoView({block:'nearest'});
       radio.spot(areaOf(HOOKS.familyHead,HOOKS.familyRule,HOOKS.family));
       await guard(radio.line(`링크 단어 중 랜덤 ${$(HOOKS.family).children.length===3?'세':$(HOOKS.family).children.length+''} 명의 위치를 찾아냈다. ↻를 누르면 다시 뽑는다.`));
       radio.line('한 명을 골라 추적하라.',{click:false});

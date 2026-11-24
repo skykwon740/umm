@@ -1,5 +1,13 @@
 // 무전 창 + 스포트라이트. 튜토리얼·승진 통보·떠돌이 외계인 알림이 함께 쓴다.
 const el=(tag,cls,html='')=>{const e=document.createElement(tag);if(cls)e.className=cls;e.innerHTML=html;return e;};
+// 무전 창은 화면 아래에 뜬다. 밝힌 곳(구멍)을 가리면 상단 바 바로 아래로 옮긴다.
+// 위로 옮겨도 가리면 아래에 그대로 둔다. hole = {top,bottom} (없으면 null)
+export function radioPlacement(hole,{height,viewport,topBar=0,gap=20}) {
+  if(!hole||!height)return 'bottom';
+  const covers=(from,to)=>hole.top<to&&hole.bottom>from;
+  const atBottom=covers(viewport-gap-height,viewport-gap),atTop=covers(topBar+8,topBar+8+height);
+  return atBottom&&!atTop?'top':'bottom';
+}
 
 export function createRadio() {
   // spotlight: one hole with a huge shadow + 4 blockers so only the hole is clickable
@@ -70,12 +78,18 @@ export function createRadio() {
     const r=node.getBoundingClientRect();
     return r.width&&r.height?r:null;
   }
+  function place(where,topBar=0) {
+    box.style.top=where==='top'?topBar+8+'px':'';box.style.bottom=where==='top'?'auto':'';
+  }
   function tick() {
-    if(shade.hidden)return;
+    if(shade.hidden){if(box.style.top)place('bottom');return;}
     const r=rectOf(),pad=8,W=innerWidth,H=innerHeight;
     const [x,y,w,h]=r?[Math.max(0,r.left-pad),Math.max(0,r.top-pad),r.width+pad*2,r.height+pad*2]:[W/2,H/2,0,0];
     Object.assign(hole.style,{left:x+'px',top:y+'px',width:w+'px',height:h+'px'});
     hole.classList.toggle('on',Boolean(r));
+    // 좁은 화면에서 아래 판(정보창) 속 가족 칸을 무전 창이 가리지 않게
+    const topBar=document.getElementById('top')?.offsetHeight??0;
+    place(radioPlacement(r?{top:y,bottom:y+h}:null,{height:box.offsetHeight,viewport:H,topBar}),topBar);
     const boxes=[[0,0,W,y],[0,y+h,W,H-y-h],[0,y,x,h],[x+w,y,W-x-w,h]];
     blockers.forEach((b,i)=>{const [l,t,bw,bh]=boxes[i];
       Object.assign(b.style,{left:l+'px',top:t+'px',width:Math.max(0,bw)+'px',height:Math.max(0,bh)+'px'});});
