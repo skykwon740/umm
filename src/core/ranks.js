@@ -5,7 +5,7 @@ export const RANKS=Object.freeze([
   {need:0, name:'견습 우주인',      line:'헬멧은 썼다. 아직 거꾸로지만.',                 visor:'#4a5a66',collar:'#6fdcff'},
   {need:5, name:'베테랑 탐사대원',  line:'',                                              visor:'#3fa7d6',collar:'#6fdcff'},
   {need:15,name:'가문 연결책',      line:'이 집 사촌이 저 집 사돈이라는 걸 안다.',        visor:'#f0c34b',collar:'#f08a4b'},
-  {need:30,name:'행성의 지배자',    line:'모든 가족이 너를 안다. 이 행성은 이제 너의 것.', visor:'#ffe066',collar:'#ffe066'},
+  {need:25,name:'행성의 지배자',    line:'모든 가족이 너를 안다. 이 행성은 이제 너의 것.', visor:'#ffe066',collar:'#ffe066'},
 ].map(Object.freeze));
 
 export function rankOf(count) {

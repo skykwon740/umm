@@ -9,17 +9,17 @@ assert.equal(RANKS[0].need,0);
 RANKS.forEach((r,i)=>i&&assert.ok(r.need>RANKS[i-1].need));
 assert.equal(rankOf(0).rank.name,'견습 우주인');
 assert.deepEqual(RANKS.map(r=>r.name),['견습 우주인','베테랑 탐사대원','가문 연결책','행성의 지배자']);
-assert.deepEqual(RANKS.map(r=>r.need),[0,5,15,30]);
+assert.deepEqual(RANKS.map(r=>r.need),[0,5,15,25]);
 assert.equal(RANKS[1].line,'');
-[[0,0],[4,0],[5,1],[14,1],[15,2],[29,2],[30,3],[31,3]].forEach(([n,i])=>assert.equal(rankOf(n).index,i,`rank at ${n}`));
+[[0,0],[4,0],[5,1],[14,1],[15,2],[24,2],[25,3],[26,3]].forEach(([n,i])=>assert.equal(rankOf(n).index,i,`rank at ${n}`));
 assert.equal(rankOf(4).left,1);
 assert.equal(rankOf(5).rank.name,'베테랑 탐사대원');
 const top=rankOf(999);assert.equal(top.rank.name,'행성의 지배자');assert.equal(top.next,null);assert.equal(top.ratio,1);
 
 // gauge: per-rank segments, widths follow thresholds, caps at 100%
-assert.deepEqual(gaugeSegments(0).map(s=>[s.from,s.to,s.fill]),[[0,5,0],[5,15,0],[15,30,0]]);
+assert.deepEqual(gaugeSegments(0).map(s=>[s.from,s.to,s.fill]),[[0,5,0],[5,15,0],[15,25,0]]);
 assert.deepEqual(gaugeSegments(7).map(s=>s.fill),[1,0.2,0]);
-assert.deepEqual(gaugeSegments(30).map(s=>s.fill),[1,1,1]);
+assert.deepEqual(gaugeSegments(25).map(s=>s.fill),[1,1,1]);
 assert.deepEqual(gaugeSegments(500).map(s=>s.fill),[1,1,1]);
 
 // interests list: read-only, hearts or memos only, storage key/format unchanged
