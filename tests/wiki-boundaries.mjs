@@ -87,7 +87,7 @@ assert.equal(await idle.journey.extend('민속무용','ko'),null,'Extending need
 assert.equal(state.busy,false);
 
 reset();const missing=controller({...wiki,search:async()=>undefined});await missing.journey.run('없는문서');
-assert.match(missing.messages[0],/찾지 못/);assert.equal(state.busy,false);assert.equal(missing.events.at(-1),'ready');
+assert.equal(missing.messages[0],'해당 외계인은 이 행성에 없다. 다른 이름을 입력하라.');assert.equal(state.busy,false);assert.equal(missing.events.at(-1),'ready');
 reset();let attempts=0;
 const retry=controller({...wiki,search:async(_lang,q)=>{if(!attempts++)throw new Error('offline');return q;}});
 await retry.journey.run('astronomy');assert.match(retry.messages[0],/연결/);assert.equal(state.busy,false);
