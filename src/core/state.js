@@ -79,17 +79,29 @@ export function initializeWalker() {
   const last=state.nodes.at(-1),here=state.here<0&&last?nodeCell(last):state.here;
   commit({here,walker:here>=0?cellVec(here):vec(20,0),dirty:true});
 }
+// 출발이 실패하면(위키에 없는 단어·통신 실패) 출발 직전의 자리와 루트로 되돌린다
+let beforeJourney=null;
 export function beginJourney(start='') {
   if(state.busy)return false;
+  beforeJourney=state;
   const journeys=[...state.journeys,{start,color:routeColor(state.journeys.length),trip:[]}];
   commit({cells:state.cells.map(c=>c===PLAN?UNKNOWN:c),guide:Array(CELL_COUNT).fill(0),journeys,activeRoot:journeys.length-1,
     trip:[],route:[],here:-1,walkPath:[],walker:null,upcoming:null,holding:false,
     revealing:true,pending:true,busy:true,dirty:true});return true;
 }
+// 새 외계인의 칸: 단어로 정해지는 칸. 다른 외계인이 이미 서 있으면 다음 후보 칸으로 옮긴다
+// (같은 칸에 둘이 서면 뒤에 놓인 외계인은 정보창도 첫 접촉도 할 수 없다)
+function freeCell(t) {
+  const taken=new Set(state.nodes.map(nodeCell));
+  for(let k=0;k<64;k++){const cell=hash(k?`${t}#${k}`:t)%CELL_COUNT;if(!taken.has(cell))return cell;}
+  const start=hash(t)%CELL_COUNT;
+  for(let k=0;k<CELL_COUNT;k++){const cell=(start+k)%CELL_COUNT;if(!taken.has(cell))return cell;}
+  return start;
+}
 export function addJourneyNode(t,lang,d) {
   const nodes=state.nodes.slice();let index=nodes.findIndex(n=>n.t===t&&n.lang===lang);
   if(index<0) {
-    const [lat,lon]=ll(cellVec(hash(t)%CELL_COUNT));index=nodes.length;nodes.push({t,lang,lat,lon});
+    const [lat,lon]=ll(cellVec(freeCell(t)));index=nodes.length;nodes.push({t,lang,lat,lon});
   }
   if(d)nodes[index]={...nodes[index],d};
   const cell=nodeCell(nodes[index]),cells=state.cells.slice(),cellRoots=state.cellRoots.slice(),cellRootSets=state.cellRootSets.slice();
@@ -101,10 +113,15 @@ export function addJourneyNode(t,lang,d) {
   commit({nodes,cells,cellRoots,cellRootSets,route,trip,journeys,dirty:true});save();return state.nodes[index];
 }
 export function completeJourney() {
-  const start=state.route[0];
-  commit({pending:false,revealing:false,busy:false,upcoming:null,holding:false,dirty:true,
-    ...(start===undefined?{}:{here:start,walker:cellVec(start),facing:1})});
-  if(start!==undefined)save();return start!==undefined;
+  const start=state.route[0],before=beforeJourney;beforeJourney=null;
+  const done={pending:false,revealing:false,busy:false,upcoming:null,holding:false,dirty:true};
+  if(start===undefined) {
+    // 외계인을 하나도 놓지 못했다: 캐릭터·루트를 출발 전으로 되돌리고 빈 루트를 남기지 않는다
+    commit({...done,...(before&&{cells:before.cells,guide:before.guide,journeys:before.journeys,activeRoot:before.activeRoot,
+      trip:before.trip,route:before.route,here:before.here,walker:before.walker})});
+    return false;
+  }
+  commit({...done,here:start,walker:cellVec(start),facing:1});save();return true;
 }
 // 고른 가족까지 길을 이어 붙인다. 지금까지의 경로와 캐릭터 위치는 그대로 둔다.
 export function beginExtension() {

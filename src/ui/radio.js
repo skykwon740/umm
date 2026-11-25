@@ -24,7 +24,7 @@ export function createRadio() {
   const textEl=box.querySelector('.d-text'),stepEl=box.querySelector('.d-step');
   const moreEl=box.querySelector('.d-more'),skipEl=box.querySelector('.d-skip');
 
-  let target=null,typing=null,waitClick=null,closeTimer=0;
+  let target=null,typing=null,waitClick=null,closeTimer=0,session=0;   // session: open()마다 바뀐다. 앞 알림은 남은 문장을 멈춘다
 
   box.addEventListener('click',event=>{
     if(event.target===skipEl)return;
@@ -33,7 +33,7 @@ export function createRadio() {
   });
 
   function open({step='',skip=null}={}) {
-    clearTimeout(closeTimer);box.hidden=false;stepEl.textContent=step;
+    session++;clearTimeout(closeTimer);box.hidden=false;box.classList.remove('d-notice');stepEl.textContent=step;
     skipEl.hidden=!skip;skipEl.onclick=skip;
   }
   function close() {
@@ -56,14 +56,16 @@ export function createRadio() {
     });
   }
   // short message that closes by itself (승진, 떠돌이 포착)
+  // 알림이 떠 있는 동안 새 알림이 오면 새 알림이 이어받는다 (앞 알림의 남은 문장·닫기 타이머는 멈춤)
   async function notice(lines,ms=2600) {
     if(isBusy())return false;
-    open();box.classList.add('d-notice');
-    for(const text of lines)await line(text,{click:false});
+    open();box.classList.add('d-notice');const mine=session;
+    for(const text of lines){await line(text,{click:false});if(mine!==session)return false;}
     closeTimer=setTimeout(()=>{box.classList.remove('d-notice');close();},ms);
     return true;
   }
   const isBusy=()=>!box.hidden&&!box.classList.contains('d-notice');
+  const isOpen=()=>!box.hidden;
 
   // target: false(off) | null(dim all) | 'clear'(block all, no dim) | selector | Element | ()=>DOMRect|null
   function spot(next) {
@@ -94,5 +96,5 @@ export function createRadio() {
     blockers.forEach((b,i)=>{const [l,t,bw,bh]=boxes[i];
       Object.assign(b.style,{left:l+'px',top:t+'px',width:Math.max(0,bw)+'px',height:Math.max(0,bh)+'px'});});
   }
-  return {open,close,line,notice,spot,tick,setStep,isBusy};
+  return {open,close,line,notice,spot,tick,setStep,isBusy,isOpen};
 }

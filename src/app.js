@@ -44,7 +44,6 @@ function startGame() {
   // 이동할 때 발걸음 소리 (사용자 결정 11/25: 끄기 토글 없이 항상)
   const footsteps=createFootsteps({enabled:true});
   const results=createResults({
-    onRestart:(title,lang)=>journey.run(title,lang),
     async onChoose(from,family) {
       const node=await journey.extend(family.t,from.lang,family.d);
       if(!node)return;
@@ -63,7 +62,8 @@ function startGame() {
     onStart(){memo.show(null);hideResults();setStatus();setJourneyBusy(true);next=null;emit('journeyStart');},
     onChange:showChain,onFocus:focusCamera,onArrive:arrive,
     onMessage(message){setStatus(message);emit('journeyMessage',message);},
-    onFinish(){setJourneyBusy(false);emit('journeyEnd');},
+    // 출발이 실패해 캐릭터가 원래 외계인 앞으로 돌아와도 하트·메모가 그 외계인에 다시 이어지게 한다
+    onFinish(){setJourneyBusy(false);memo.show(state.nodes.find(n=>nodeCell(n)===state.here));emit('journeyEnd');},
   });
   const mission=createMission({startJourney:(title,lang)=>journey.run(title,lang),onHome:()=>location.assign(planetUrl(null))});
   const navigation=createNavigation({project,onArrive(){footsteps.step();arrive();},onMessage:setStatus});

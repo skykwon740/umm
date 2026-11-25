@@ -10,7 +10,7 @@ const FAMILY_FAILED='가족을 불러오지 못했어요. 연결을 확인하고
 
 export function createStory({onChoose,onFirstContact,onToggle}) {
   const stories=new Map(),pools=new Map(),shown=new Map();
-  let node=null,token=0,familyToken=0,again=false;
+  let node=null,token=0,familyToken=0;
   // 같은 문서는 한 번만 받아 두고, 실패하면 다음에 다시 받는다
   function cached(map,key,load) {
     if(!map.has(key)){const p=load();map.set(key,p);p.catch(()=>map.delete(key));}
@@ -21,10 +21,7 @@ export function createStory({onChoose,onFirstContact,onToggle}) {
     const exclude=state.nodes.filter(m=>m.lang===n.lang).map(m=>m.t);
     return family(n.lang,pool,{exclude,avoid:shown.get(key)??[]});   // avoid: 지금 보이는 후보
   }
-  function familyGuide(count,again) {
-    return count?'':'이 문서에서는 이어질 가족을 찾지 못했어요.';
-  }
-  function showFamily(from,list,again) {
+  function showFamily(from,list) {
     listEl.replaceChildren(...list.map((c,i)=>{
       const item=document.createElement('li'),button=document.createElement('button');
       const title=document.createElement('span'),line=document.createElement('small');
@@ -35,23 +32,23 @@ export function createStory({onChoose,onFirstContact,onToggle}) {
       button.addEventListener('click',()=>{if(node===from&&!state.busy)onChoose(from,c);});
       item.append(button);return item;
     }));
-    guideEl.textContent=familyGuide(list.length,again);
+    guideEl.textContent=list.length?'':'이 문서에서는 이어질 가족을 찾지 못했어요.';
   }
   // 가족만 다시 뽑는다. 요약은 건드리지 않는다
-  async function loadFamily(n,again) {
+  async function loadFamily(n) {
     const mine=++familyToken,key=keyOf(n);
     retryEl.hidden=true;rerollEl.disabled=true;listEl.replaceChildren();guideEl.textContent='가족을 찾는 중…';
     try {
       const list=await candidates(n);
       if(mine!==familyToken)return;
-      shown.set(key,list.map(c=>c.t));showFamily(n,list,again);
+      shown.set(key,list.map(c=>c.t));showFamily(n,list);
     } catch {
       if(mine===familyToken){guideEl.textContent=FAMILY_FAILED;retryEl.hidden=false;}
     } finally {
       if(mine===familyToken)rerollEl.disabled=false;
     }
   }
-  async function load(n,again) {
+  async function load(n) {
     const mine=++token,key=keyOf(n);
     retryEl.hidden=true;
     summaryEl.textContent='이야기를 듣는 중…';
@@ -60,21 +57,20 @@ export function createStory({onChoose,onFirstContact,onToggle}) {
       summaryEl.textContent=!s?'위키백과에서 이 문서를 찾지 못했어요.'
         :s.summary||'요약이 없는 문서예요.';
     },()=>{if(mine===token){summaryEl.textContent='이야기를 불러오지 못했어요.';retryEl.hidden=false;}});
-    await Promise.all([summary,loadFamily(n,again)]);
+    await Promise.all([summary,loadFamily(n)]);
   }
   function open(n) {
     if(node)return;
     node=n;titleEl.textContent=`“${n.t}”의 가족들`;storyEl.hidden=false;onToggle(true);
     // 처음 열면 만난 외계인이 된다 (문서당 1회, 사용자 결정 2026-11-21). 저장된 깃발로 판단한다
-    const first=visitCurrent();again=!first;
-    if(first)onFirstContact?.(n);
-    load(n,again);
+    if(visitCurrent())onFirstContact?.(n);
+    load(n);
   }
   function close() {
     if(!node)return;
     node=null;token++;familyToken++;storyEl.hidden=true;onToggle(false);
   }
-  rerollEl.addEventListener('click',()=>{if(node&&!state.busy)loadFamily(node,false);});
-  retryEl.addEventListener('click',()=>{if(node)load(node,again);});
+  rerollEl.addEventListener('click',()=>{if(node&&!state.busy)loadFamily(node);});
+  retryEl.addEventListener('click',()=>{if(node)load(node);});
   return {open,close,get node(){return node;}};
 }

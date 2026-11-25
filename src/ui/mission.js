@@ -39,7 +39,8 @@ export function createMission({startJourney,onHome}) {
 
   const wanderer=createWanderer({
     demo,
-    canAppear:()=>progress().tutorial&&!tutorial.isRunning()&&!state.busy&&!radio.isBusy(),
+    // 승진 통보 같은 무전이 떠 있는 동안에는 나타나지 않는다(포착 알림이 그 무전에 묻혀 사라지지 않게)
+    canAppear:()=>progress().tutorial&&!tutorial.isRunning()&&!state.busy&&!radio.isOpen(),
     onSpotted:()=>radio.notice(['떠돌이 외계인 포착. 접촉은 자유다.'],2200),
     onMeet:(t,lang)=>{markWanderer(t,lang);meet(t,lang);},
     onFollow:(t,lang)=>{const q=document.getElementById('q');if(q)q.value=t;startJourney(t,lang);},

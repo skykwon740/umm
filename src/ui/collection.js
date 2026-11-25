@@ -24,10 +24,11 @@ export function createCollection() {
         const e=list.find(x=>x.t===n.t&&x.lang===n.lang);
         if(e&&!used.has(e)){used.add(e);rows.push(e);}
       }
-      return rows.length?`<section class="journey-group"><h3 style="--route-color:${journey.color||'var(--ui)'}">${esc(journey.start||'탐사')}</h3><ul>${rows.map(item).join('')}</ul></section>`:'';
+      // 루트 색은 묶음 전체에 준다: 제목과 항목 왼쪽 줄이 같은 루트 색 (패널 루트 목록과 같게)
+      return rows.length?`<section class="journey-group" style="--route-color:${journey.color||'var(--ui)'}"><h3>${esc(journey.start||'탐사')}</h3><ul>${rows.map(item).join('')}</ul></section>`:'';
     }).join('');
     const rest=list.filter(e=>!used.has(e));
-    const other=rest.length?`<section class="journey-group"><h3 style="--route-color:var(--dim)">루트 밖</h3><ul>${rest.map(item).join('')}</ul></section>`:'';
+    const other=rest.length?`<section class="journey-group" style="--route-color:var(--dim)"><h3>루트 밖</h3><ul>${rest.map(item).join('')}</ul></section>`:'';
     box.innerHTML=`<div class="d-card"><h2>관심·메모</h2>
       ${list.length?groups+other:'<p class="c-empty">아직 관심 표시나 메모가 없다.</p>'}
       <button type="button" class="d-continue c-close">닫기</button></div>`;
