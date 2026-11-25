@@ -2,6 +2,9 @@ import { N, DEG, RAD, vec, cellOf, cellVec, nodeCell } from '../core/grid.js';
 import { state, PLAN, ROAD, BLDG, ENTERED, routeColor, requestRedraw } from '../core/state.js';
 import {camera as view,resizeCamera} from './camera.js';
 import {currentPlanet} from '../core/planets.js';
+import {progress} from '../core/progress.js';
+import {rankOf} from '../core/ranks.js';
+import {createTrail,advanceTrail,followerSpots,followerCount,helmetColor,tintVisor,shrinkHalf} from './followers.js';
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const fx = document.getElementById('fx'), fctx = fx.getContext('2d');
 const PX = 3;
@@ -27,9 +30,28 @@ function loadSprite(path,w,h,onLoad=()=>{}) {
   const image=document.createElement('img');image.onload=()=>{const g=canvas.getContext('2d');g.imageSmoothingEnabled=false;g.drawImage(image,0,0,w,h);onLoad();requestRedraw();};
   image.src=new URL(path,import.meta.url);return canvas;
 }
-const ALIEN_IDLE=loadSprite('../../assets/alien-idle.png',16,20);
+const ALIEN_IDLE=loadSprite('../../assets/alien-idle.png',16,20,()=>{followerSprite=null;});
 const ALIEN_AWAKE_SOURCE=loadSprite('../../assets/alien-awake.png',16,20,()=>awakeCache.clear());
-const ASTRONAUT=loadSprite('../../assets/astronaut.png',14,16);
+const ASTRONAUT=loadSprite('../../assets/astronaut.png',14,16,()=>helmetCache.clear());
+const helmetCache=new Map();
+// 계급 색 헬멧: 헬멧 유리 칸만 바꾼 우주인을 색마다 한 번씩 만든다
+function astronautFor(color) {
+  if(helmetCache.has(color))return helmetCache.get(color);
+  const c=document.createElement('canvas');c.width=ASTRONAUT.width;c.height=ASTRONAUT.height;
+  const g=c.getContext('2d');g.drawImage(ASTRONAUT,0,0);
+  const pixels=g.getImageData(0,0,c.width,c.height);pixels.data.set(tintVisor(pixels.data,color));
+  g.putImageData(pixels,0,0);helmetCache.set(color,c);return c;
+}
+// 따라다니는 작은 외계인: 가만히 있는 외계인(16×20)을 절반(8×10)으로 줄인 것
+let followerSprite=null;
+function smallAlien() {
+  if(followerSprite)return followerSprite;
+  const g=ALIEN_IDLE.getContext('2d'),src=g.getImageData(0,0,ALIEN_IDLE.width,ALIEN_IDLE.height),small=shrinkHalf(src.data,src.width,src.height);
+  const c=document.createElement('canvas');c.width=small.width;c.height=small.height;
+  c.getContext('2d').putImageData(new ImageData(small.data,small.width,small.height),0,0);
+  return followerSprite=c;
+}
+const trail=createTrail();
 const awakeCache=new Map();
 function awakeAlien(color) {
   if(awakeCache.has(color))return awakeCache.get(color);
@@ -146,13 +168,22 @@ function drawAliens(now) {
   }
 }
 function drawSprite(now) {
-  const p = project(state.walker); if (!p) return;
-  const s=cellPx()>=28?2:1,img=ASTRONAUT;
-  fctx.save();
-  fctx.translate(Math.round(p.x), Math.round(p.y + cellPx() * 0.25));
-  fctx.scale(state.facing, 1);
-  fctx.drawImage(img, -img.width * s / 2, -img.height * s, img.width * s, img.height * s);
-  fctx.restore();
+  const rank=rankOf(progress().met).index,s=cellPx()>=28?2:1,feet=cellPx()*0.25;
+  advanceTrail(trail,state.walker,state.facing);
+  const p=project(state.walker),followers=[];
+  followerSpots(trail,state.walker,followerCount(rank)).forEach(v=>{const q=project(v);if(q)followers.push(q);});
+  const stand=(img,q)=>{
+    fctx.save();
+    fctx.translate(Math.round(q.x),Math.round(q.y+feet));
+    fctx.scale(state.facing,1);
+    fctx.drawImage(img,-img.width*s/2,-img.height*s,img.width*s,img.height*s);
+    fctx.restore();
+  };
+  // 화면에서 위쪽(먼 쪽)에 선 쪽을 먼저 그려 아래쪽이 위에 겹친다
+  const small=followers.length?smallAlien():null;
+  followers.filter(q=>!p||q.y<p.y).forEach(q=>stand(small,q));
+  if(p)stand(astronautFor(helmetColor(rank)),p);
+  followers.filter(q=>p&&q.y>=p.y).forEach(q=>stand(small,q));
 }
 function project(w) {
   const cl = Math.cos(view.lat*RAD), sl = Math.sin(view.lat*RAD), co = Math.cos(view.lon*RAD), so = Math.sin(view.lon*RAD);
