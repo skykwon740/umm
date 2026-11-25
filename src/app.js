@@ -18,7 +18,7 @@ load();
 loadInterests();
 const memo=createMemo();
 let next=null;   // 가족을 고른 뒤 걸어가야 할 외계인
-// 오른쪽 패널의 켜기/끄기 토글. 저장이 막힌 브라우저에서도 기본값으로 동작한다
+// 오른쪽 패널의 자동 이동 토글. 저장이 막힌 브라우저에서도 기본값(켜짐)으로 동작한다
 function bindToggle(id,key) {
   const input=document.getElementById(id);
   try{const saved=localStorage.getItem(key);if(saved==='on'||saved==='off')input.checked=saved==='on';}catch{}
@@ -26,9 +26,8 @@ function bindToggle(id,key) {
   return input;
 }
 const autoMove=bindToggle('autoMove','umm.autoMove');
-const soundToggle=bindToggle('sound','umm.sound');
-const footsteps=createFootsteps({enabled:soundToggle.checked});
-soundToggle.addEventListener('change',()=>footsteps.setEnabled(soundToggle.checked));
+// 이동할 때 발걸음 소리 (사용자 결정 11/25: 끄기 토글 없이 항상)
+const footsteps=createFootsteps({enabled:true});
 const results=createResults({
   onRestart:(title,lang)=>journey.run(title,lang),
   async onChoose(from,family) {

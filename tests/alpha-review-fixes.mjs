@@ -30,3 +30,8 @@ const memo=fs.readFileSync(new URL('../src/ui/memo.js',import.meta.url),'utf8');
 assert.match(memo,/else status\.textContent=HEART_FAILED;/);
 assert.match(memo,/HEART_FAILED='저장하지 못했습니다\. 브라우저 저장 공간을 확인해 주세요\.'/);
 console.log('PASS: not-in-Wikipedia words are not replaced by unrelated full-text hits, memo label kept, heart save failure keeps its own message.');
+// 3. 소리 끄기 토글은 없다 (사용자 결정 11/25 「토글 빼기」). 발걸음 소리는 항상 켜져 있다
+assert.equal(/id="sound"/.test(html),false);
+const app=fs.readFileSync(new URL('../src/app.js',import.meta.url),'utf8');
+assert.match(app,/createFootsteps\(\{enabled:true\}\)/);assert.equal(app.includes('umm.sound'),false);
+console.log('PASS: no sound toggle; footsteps always on.');

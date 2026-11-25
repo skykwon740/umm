@@ -93,7 +93,7 @@ data.set('webglobe3',JSON.stringify({c:cells.join(''),n:[{t:'Old',lang:'en',lat:
 assert.equal(state.guide[b],1);assert.equal(state.cells[b],PLAN);save();
 assert.deepEqual(JSON.parse(data.get('webglobe3')).g,[b]);
 
-// 결정 9: 발걸음 소리는 간격을 제한하고, 끌 수 있다
+// 결정 9: 발걸음 소리는 간격을 제한한다 (화면에 끄기 토글은 없다: 사용자 결정 11/25)
 const started=[];
 globalThis.addEventListener=(type,fn)=>{if(type==='pointerdown')globalThis.unlockAudio=fn;};
 const node=()=>({connect(next){return next;},start(t){started.push(t);},stop(){},frequency:{},Q:{},gain:{setValueAtTime(){},exponentialRampToValueAtTime(){}},playbackRate:{}});
