@@ -74,7 +74,10 @@
 .d-recent-h {color:#9aa7ae;font-family:'Galmuri11',monospace;font-size:12px;margin-bottom:6px;}
 .d-recent {list-style:none;display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px;}
 .d-recent li {border:2px solid var(--dim);padding:1px 6px;font-family:'Galmuri11',monospace;font-size:12px;}
+.d-planet {margin-left:8px;color:#9aa7ae;font-family:'Galmuri11',monospace;font-size:12px;}
+.d-actions {display:grid;gap:8px;}
 .d-continue {width:100%;background:var(--ui);color:var(--bg);}
+.d-home {width:100%;}
 .d-continue:hover {background:var(--fg);border-color:var(--fg);}
 
 /* wanderer */

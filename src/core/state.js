@@ -1,4 +1,5 @@
 import {CELL_COUNT,cellVec,hash,ll,nodeCell,vec,cellOf,legacyCellVec} from './grid.js';
+import {storageKey} from './planets.js';
 
 export const UNKNOWN=0,PLAN=1,ROAD=2,BLDG=3,ENTERED=4,GUIDE=5,GUIDE_OFF=6;
 const validCell=c=>Number.isInteger(c)&&c>=0&&c<CELL_COUNT;
@@ -34,7 +35,7 @@ function commit(patch) { state=freeze({...state,...patch}); }
 
 export function save(storage) {
   try {
-    (storage??globalThis.localStorage).setItem('webglobe3',JSON.stringify({
+    (storage??globalThis.localStorage).setItem(storageKey('webglobe3'),JSON.stringify({
       c:state.cells.join(''),n:state.nodes,r:state.route,t:state.trip,
       h:state.here,g:state.route.filter(c=>state.guide[c]),cr:state.cellRoots,cs:state.cellRootSets,j:state.journeys,
     }));return true;
@@ -42,7 +43,7 @@ export function save(storage) {
 }
 export function load(storage) {
   try {
-    const s=JSON.parse((storage??globalThis.localStorage).getItem('webglobe3'));
+    const s=JSON.parse((storage??globalThis.localStorage).getItem(storageKey('webglobe3')));
     if(!s||typeof s.c!=='string'||![CELL_COUNT,3456].includes(s.c.length)||!/^[0-6]+$/.test(s.c))return false;
     const nodes=s.n??[],route=s.r??[],trip=s.t??[];
     if(!Array.isArray(nodes)||nodes.some(n=>!n||typeof n.t!=='string'||!['ko','en'].includes(n.lang)||!Number.isFinite(n.lat)||!Number.isFinite(n.lon)))return false;

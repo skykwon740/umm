@@ -1,6 +1,7 @@
 import { N, DEG, RAD, vec, cellOf, cellVec, nodeCell } from '../core/grid.js';
 import { state, PLAN, ROAD, BLDG, ENTERED, routeColor, requestRedraw } from '../core/state.js';
 import {camera as view,resizeCamera} from './camera.js';
+import {currentPlanet} from '../core/planets.js';
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const fx = document.getElementById('fx'), fctx = fx.getContext('2d');
 const PX = 3;
@@ -50,7 +51,7 @@ function colorPalette(hex) {
   routePalettes.set(hex,shades);return shades;
 }
 const PAL = [
-  ['#1c262e', '#243039', '#2c3a45', '#354552'],   // unknown
+  ['#1c262e', '#243039', '#2c3a45', '#354552'],   // unknown (그릴 때 지금 행성의 땅 색으로 바꾼다)
   ['#2f8fb5', '#45acd4', '#6fdcff', '#9be8ff'],   // road not walked yet: UI colour
   ['#2f8fb5', '#45acd4', '#6fdcff', '#9be8ff'],   // walked road: UI colour
   ['#a4482a', '#c85f34', '#f08a4b', '#f6ad70'],   // building
@@ -70,7 +71,10 @@ function makeSprite(rows, colors, ring) {
   return c;
 }
 
+// 아직 밝혀지지 않은 땅은 행성마다 색이 다르다 (core/planets.js). 모듈을 읽은 뒤에 행성이 정해지므로 그릴 때 맞춘다
+let groundOf = null;
 function render(now, drawLabels) {
+  if (groundOf !== currentPlanet()) { groundOf = currentPlanet(); PAL[0] = groundOf.ground.map(rgb); }
   const cx = CX, cy = CY, R = view.R;
   const cl = Math.cos(view.lat*RAD), sl = Math.sin(view.lat*RAD), co = Math.cos(view.lon*RAD), so = Math.sin(view.lon*RAD);
   const px = cellPx();
