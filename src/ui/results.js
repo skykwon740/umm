@@ -103,6 +103,12 @@ function placeOpen(x, y, below) {
     resultEl.style.top = Math.max(top + h + 8, Math.min(innerHeight - 8, y)) + 'px'; return;
   }
   const minY = top + 8, maxY = innerHeight - 8, gap = 40;
+  // 포인터가 창 위에 있으면 높이가 바뀌어도 자리를 다시 고르지 않는다. 가족 설명(hover)·↻로 높이가 바뀔 때마다 위/아래/옆을
+  // 다시 고르면 창이 커서 밑에서 달아났다 돌아오기를 되풀이한다(떨림). 보기 창이 열려 좁아지면 옆으로, 화면 아래로 넘치면 위로만 민다
+  if (resultEl.matches?.(':hover') && resultEl.style.top) {
+    resultEl.style.left = clampX(parseFloat(resultEl.style.left)) + 'px';
+    resultEl.style.top = Math.max(minY, Math.min(parseFloat(resultEl.style.top), maxY - h)) + 'px'; return;
+  }
   let left = x, boxTop;
   if (y - h >= minY) boxTop = y - h;
   else if (below + h <= maxY) boxTop = below;
