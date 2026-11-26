@@ -1,4 +1,4 @@
-import { N, DEG, RAD, vec, cellOf, cellVec, nodeCell } from '../core/grid.js';
+import { N, DEG, RAD, vec, cellOf, nearCell, cellVec, nodeCell } from '../core/grid.js';
 import { state, PLAN, ROAD, BLDG, ENTERED, routeColor, requestRedraw } from '../core/state.js';
 import {camera as view,resizeCamera} from './camera.js';
 import {currentPlanet} from '../core/planets.js';
@@ -112,7 +112,7 @@ function render(now, drawLabels) {
       const z = Math.sqrt(1 - d2);
       const wy = dy*cl + z*sl, z1 = -dy*sl + z*cl;
       const wx = dx*co + z1*so, wz = -dx*so + z1*co;
-      const c = cellOf(wx, wy, wz);
+      const c = left >= 0 ? nearCell(left, wx, wy, wz) : cellOf(wx, wy, wz);
       const edge = (left >= 0 && left !== c) || (above[x] >= 0 && above[x] !== c);
       left = above[x] = c;
       // 예전 저장의 안내(guide) 칸도 깜빡이지 않고 저장된 종류 그대로 그린다

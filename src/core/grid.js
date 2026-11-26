@@ -58,6 +58,21 @@ export function cellOf(x,y,z) {
   }
   visit(kd);return best;
 }
+// 화면에서 붙은 픽셀은 대개 같은 칸이다. 앞 픽셀의 칸에서 출발해 더 가까운 이웃 칸으로 옮겨 가다가,
+// 이웃 칸들보다 가까운 칸에 닿으면 그 칸이 답이다(전체 검색과 같은 답, tests/fast-cell-lookup.mjs). 몇 걸음 안에 못 닿으면 전체 검색
+// 픽셀마다 불리므로 평평한 숫자 배열로 둔다 (칸 좌표 XYZ, 이웃 목록 NEAR의 칸별 시작 위치 FROM)
+const XYZ=Float64Array.from(vertices.flat()),FROM=new Int32Array(vertices.length+1);
+neighbours.forEach((s,c)=>{FROM[c+1]=FROM[c]+s.size;});
+const NEAR=Int32Array.from(neighbours.flatMap(s=>[...s]));
+export function nearCell(cell,x,y,z) {
+  for(let step=0;step<4;step++) {
+    let i=cell*3,best=x*XYZ[i]+y*XYZ[i+1]+z*XYZ[i+2],next=cell;
+    for(let k=FROM[cell],end=FROM[cell+1];k<end;k++){i=NEAR[k]*3;const d=x*XYZ[i]+y*XYZ[i+1]+z*XYZ[i+2];if(d>best){best=d;next=NEAR[k];}}
+    if(next===cell)return cell;
+    cell=next;
+  }
+  return cellOf(x,y,z);
+}
 export const PENTAGON_COUNT=12, HEXAGON_COUNT=CELL_COUNT-PENTAGON_COUNT;
 export const cellSides=cell=>cellNeighbours(cell).length;
 
