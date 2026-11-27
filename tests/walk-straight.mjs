@@ -48,6 +48,24 @@ for(const index of [0,5,2,state.nodes.length-1]) {
 }
 assert.deepEqual(state.cells,before,'Revisiting paints nothing new');
 
+// 2-1. 새 색 루트: 새 외계인은 옛길 칸에 놓이지 않고, 새로 칠하는 칸은 모두 자기 루트 색이다(옛 색에 가려지지 않게)
+reset();
+for(const [start,words] of [['농구',['스포츠','올림픽','그리스','신화','제우스','번개','전기','에디슨']],
+  ['고양이',['사자','아프리카','사하라','오아시스','대추야자','설탕','사탕수수','브라질']],
+  ['음악',['악기','피아노','쇼팽','폴란드','바르샤바','비스와강','발트해','바이킹']]]) {
+  let roads=state.cells.slice();
+  await journey.run(start,'ko');initializeWalker();awakenCurrentNode(1);
+  const root=state.activeRoot;
+  assert.equal(roads[state.here],0,`${start}: the first alien stands on blank ground`);
+  for(const word of words) {
+    roads=state.cells.slice();
+    const node=await journey.extend(word,'ko','');
+    assert.equal(roads[nodeCell(node)],0,`${word}: a new alien is not placed on an old road`);
+    navigation.approach(node,true);const path=state.walkPath.slice();walkAll();awakenCurrentNode(1);
+    for(const c of path.filter(c=>!roads[c]))assert.equal(state.cellRootSets[c][0],root,`${word}: new ground takes the new route colour`);
+  }
+}
+
 // 3. 길이 이어지지 않은 가 본 섬: 옆으로 뻗은 옛길이 있어도 지금 자리에서 곧장 간다
 const at=(t,c)=>{const [lat,lon]=ll(cellVec(c));return {t,lang:'ko',lat,lon,awakened:true};};
 const load2=(here,away,extra=[])=>{

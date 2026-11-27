@@ -89,11 +89,12 @@ export function beginJourney(start='') {
     trip:[],route:[],here:-1,walkPath:[],walker:null,upcoming:null,holding:false,
     revealing:true,pending:true,busy:true,dirty:true});return true;
 }
-// 새 외계인의 칸: 단어로 정해지는 칸. 다른 외계인이 이미 서 있으면 다음 후보 칸으로 옮긴다
-// (같은 칸에 둘이 서면 뒤에 놓인 외계인은 정보창도 첫 접촉도 할 수 없다)
+// 새 외계인의 칸: 단어로 정해지는 칸. 다른 외계인이 서 있거나 이미 칠해진 칸이면 다음 후보 칸으로 옮긴다
+// (같은 칸에 둘이 서면 뒤에 놓인 외계인은 정보창도 첫 접촉도 할 수 없다. 옛길 위에 놓이면 외계인과 거기까지의 길이
+// 옛 루트 색이 되어 새 루트 색이 가려진다: 팀 피드백 11/27). 빈 칸을 못 찾으면 외계인만 피한다
 function freeCell(t) {
   const taken=new Set(state.nodes.map(nodeCell));
-  for(let k=0;k<64;k++){const cell=hash(k?`${t}#${k}`:t)%CELL_COUNT;if(!taken.has(cell))return cell;}
+  for(let k=0;k<64;k++){const cell=hash(k?`${t}#${k}`:t)%CELL_COUNT;if(!taken.has(cell)&&!state.cells[cell])return cell;}
   const start=hash(t)%CELL_COUNT;
   for(let k=0;k<CELL_COUNT;k++){const cell=(start+k)%CELL_COUNT;if(!taken.has(cell))return cell;}
   return start;
