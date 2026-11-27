@@ -1,6 +1,6 @@
 import { N, DEG, RAD, vec, cellOf, nearCell, cellVec, nodeCell } from '../core/grid.js';
 import { state, PLAN, ROAD, BLDG, ENTERED, routeColor, requestRedraw } from '../core/state.js';
-import {camera as view,resizeCamera} from './camera.js';
+import {camera as view,resizeCamera,setPresentationMode} from './camera.js';
 import {currentPlanet} from '../core/planets.js';
 import {progress} from '../core/progress.js';
 import {rankOf} from '../core/ranks.js';
@@ -9,14 +9,17 @@ const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const fx = document.getElementById('fx'), fctx = fx.getContext('2d');
 const PX = 3;
 let W, H, img, buf, above;
-let CX = 0, CY = 0;                             // globe centre: middle of the area the panels leave free
+let CX = 0, CY = 0, targetCX = 0, targetCY = 0; // globe centre eases between exploration and results layouts
 const cellPx = () => view.R * Math.PI / 2 / N;
 function resize() {
   if (!innerWidth || !innerHeight) return;      // hidden window: wait for the resize event that gives it a size
   W = Math.ceil(innerWidth / PX); H = Math.ceil(innerHeight / PX);
   cv.width = W; cv.height = H;
-  CX = (W - document.getElementById('side').offsetWidth / PX) / 2;
-  CY = (H + document.getElementById('top').offsetHeight / PX) / 2;
+  const resultsOpen=document.body.classList.contains('results-open');
+  const routeSelected=document.body.classList.contains('route-selected');
+  setPresentationMode(resultsOpen,W,H,routeSelected);
+  targetCX = resultsOpen ? W * (routeSelected ? (W < 400 ? .24 : .30) : .5) : (W - document.getElementById('side').offsetWidth / PX) / 2;
+  targetCY = resultsOpen ? H / 2 : (H + document.getElementById('top').offsetHeight / PX) / 2;
   const k = PX * (devicePixelRatio || 1);
   fx.width = W * k; fx.height = H * k; fctx.setTransform(k, 0, 0, k, 0, 0); fctx.imageSmoothingEnabled = false;
   img = ctx.createImageData(W, H); buf = new Uint32Array(img.data.buffer); above = new Int32Array(W);
@@ -97,10 +100,14 @@ function makeSprite(rows, colors, ring) {
 let groundOf = null;
 function render(now, drawLabels) {
   if (groundOf !== currentPlanet()) { groundOf = currentPlanet(); PAL[0] = groundOf.ground.map(rgb); }
+  CX += (targetCX-CX)*.24;CY += (targetCY-CY)*.24;
+  if(Math.abs(targetCX-CX)>.25||Math.abs(targetCY-CY)>.25)requestRedraw();
   const cx = CX, cy = CY, R = view.R;
   const cl = Math.cos(view.lat*RAD), sl = Math.sin(view.lat*RAD), co = Math.cos(view.lon*RAD), so = Math.sin(view.lon*RAD);
   const px = cellPx();
   const grid = px >= 5;
+  const resultsOpen=document.body.classList.contains('results-open');
+  const unexploredNodeCells=resultsOpen?new Set(state.nodes.filter(node=>!node.awakened).map(nodeCell)):null;
   const y0 = Math.max(0, Math.floor(cy - R)), y1e = Math.min(H, Math.ceil(cy + R));
   buf.fill(BG); above.fill(-1);
   for (let y = y0; y < y1e; y++) {
@@ -112,16 +119,20 @@ function render(now, drawLabels) {
       const z = Math.sqrt(1 - d2);
       const wy = dy*cl + z*sl, z1 = -dy*sl + z*cl;
       const wx = dx*co + z1*so, wz = -dx*so + z1*co;
-      const c = left >= 0 ? nearCell(left, wx, wy, wz) : cellOf(wx, wy, wz);
+      const directCell=resultsOpen?cellOf(wx,wy,wz):-1,c = left >= 0 ? nearCell(left, wx, wy, wz) : resultsOpen?directCell:cellOf(wx,wy,wz);
       const edge = (left >= 0 && left !== c) || (above[x] >= 0 && above[x] !== c);
       left = above[x] = c;
       // 예전 저장의 안내(guide) 칸도 깜빡이지 않고 저장된 종류 그대로 그린다
-      const type = state.cells[c];
+      let type = state.cells[c];
       const rootType=type===PLAN||type===ROAD||type===BLDG||type===ENTERED;
       const k = y*W + x;
       if (rootType) {
         // 루트 칸은 루트 색 한 가지로 평평하게 (명암·반짝 점·줄무늬 없음). 경계선만 한 단계 어둡게
-        const pal=(state.cellRootSets?.[c]??[]).length||state.cellRoots[c]>=0?colorPalette(colorForCell(c)):PAL[type];
+        const roots=state.cellRootSets?.[c]??(state.cellRoots[c]>=0?[state.cellRoots[c]]:[]);
+        const visibleRoots=roots.filter(root=>journeyWasExplored(root));
+        const hiddenResultTile=resultsOpen&&(!visibleRoots.length||unexploredNodeCells.has(c)||unexploredNodeCells.has(directCell));
+        if(hiddenResultTile)type=0;
+        const pal=visibleRoots.length&&!hiddenResultTile?colorPalette(routeColorForRoot(visibleRoots[0])):PAL[type];
         buf[k] = grid && edge ? pal[1] : pal[2]; continue;
       }
       let lv = dx*L[0] + dy*L[1] + z*L[2];
@@ -132,11 +143,19 @@ function render(now, drawLabels) {
     }
   }
   fctx.clearRect(0, 0, W, H);
-  drawAliens(now);
-  if (state.walker) drawSprite(now);
+  if (document.body.classList.contains('results-open')) drawResultsAliens(now);
+  else {
+    drawAliens(now);
+    if (state.walker) drawSprite(now);
+  }
   ctx.putImageData(img, 0, 0);
   drawLabels();
 }
+function journeyWasExplored(root) {
+  const journey=state.journeys[root];
+  return Boolean(journey?.trip?.some(index=>state.nodes[index]?.awakened));
+}
+function routeColorForRoot(root) { return state.journeys[root]?.color||routeColor(root); }
 // Aliens point out from the globe's centre, like ticks around a dial.
 function pose(p, n) {
   const px=cellPx(),s=px>=28?2:1,cell=nodeCell(n),color=colorForCell(cell);
@@ -166,6 +185,25 @@ function drawAliens(now) {
     const jumping=state.alienJumpAt&&now-state.alienJumpAt<760?Math.abs(Math.sin((now-state.alienJumpAt)/760*Math.PI))*cellPx()*.33:0;
     place(sprite,bx,by-jumping,ux,uy,s,sprite.width/2);
   }
+}
+// Results retain the encountered alien sprites and labels, but never the astronaut.
+function drawResultsAliens(now) {
+  const list=[];
+  for(const node of state.nodes){if(!node.awakened)continue;const p=project(vec(node.lat,node.lon));if(p&&p.x>-60&&p.y>-60&&p.x<W+60&&p.y<H+60)list.push([p,node]);}
+  list.sort((a,b)=>a[0].z-b[0].z);
+  for(const [p,node] of list){
+    const {s,ux,uy,sprite,h,bx,by}=pose(p,node);
+    const jump=state.alienJumpAt&&now-state.alienJumpAt<760?Math.abs(Math.sin((now-state.alienJumpAt)/760*Math.PI))*cellPx()*.33:0;
+    place(sprite,bx,by-jump,ux,uy,s,sprite.width/2);
+    const label=node.t.length>12?node.t.slice(0,11)+'…':node.t;
+    fctx.save();fctx.textAlign='center';fctx.textBaseline='top';fctx.font='4px sans-serif';fctx.lineJoin='round';
+    fctx.strokeStyle='#111722';fctx.lineWidth=2;fctx.strokeText(label,bx,by+2,28);
+    fctx.fillStyle='#f3f6ff';fctx.fillText(label,bx,by+2,28);fctx.restore();
+  }
+}
+function drawAlienSnapshot(target,x,y,node,width=32,height=40) {
+  const cell=nodeCell(node),sprite=node.awakened?awakeAlien(colorForCell(cell)):ALIEN_IDLE;
+  target.save();target.imageSmoothingEnabled=false;target.drawImage(sprite,x-width/2,y,width,height);target.restore();
 }
 function drawSprite(now) {
   const rank=rankOf(progress().met).index,s=cellPx()>=28?2:1,feet=cellPx()*0.25;
@@ -201,4 +239,18 @@ function unproject(sx, sy) {           // screen px → cell id (or -1)
   return cellOf(dx*co + z1*so, wy, -dx*so + z1*co);
 }
 
-export { cv, PX, resize, cellPx, render, pose, project, unproject };
+// The ending card uses the same live globe as the exploration view, including its sprites.
+function drawGlobeSnapshot(target, x, y, size) {
+  const radius = view.R + 8, sx = CX - radius, sy = CY - radius, side = radius * 2;
+  const g = target.getContext('2d');
+  g.save();
+  g.beginPath();g.arc(x + size/2, y + size/2, size/2, 0, Math.PI*2);g.clip();
+  g.imageSmoothingEnabled = false;
+  g.drawImage(cv, sx, sy, side, side, x, y, size, size);
+  const scale = PX * (devicePixelRatio || 1);
+  g.drawImage(fx, sx*scale, sy*scale, side*scale, side*scale, x, y, size, size);
+  g.restore();
+  g.strokeStyle='#7389a8';g.lineWidth=3;g.beginPath();g.arc(x+size/2,y+size/2,size/2,0,Math.PI*2);g.stroke();
+}
+
+export { cv, PX, resize, cellPx, render, pose, project, unproject, drawGlobeSnapshot, drawAlienSnapshot };

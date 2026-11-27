@@ -18,7 +18,7 @@ export function bindInput(navigation) {
   cv.addEventListener('pointerup', e => {
     if(!drag||drag.pointerId!==e.pointerId)return;
     // a click (not a drag) on a drawn tile → walk there
-    if (drag && !drag.moved && state.here >= 0 && !state.revealing) {
+    if (drag && !drag.moved && state.here >= 0 && !state.revealing && !document.body.classList.contains('results-open')) {
       let c = unproject(e.clientX, e.clientY);
       // a building stands above its tile, so a click on the sprite counts too
       for (const n of state.nodes) {
