@@ -55,7 +55,7 @@ export function createRadio() {
       timer=setInterval(()=>{i++;textEl.textContent=text.slice(0,i);if(i>=text.length)finish();},speed);
     });
   }
-  // short message that closes by itself (승진, 떠돌이 포착)
+  // short message that closes by itself (승진)
   // 알림이 떠 있는 동안 새 알림이 오면 새 알림이 이어받는다 (앞 알림의 남은 문장·닫기 타이머는 멈춤)
   async function notice(lines,ms=2600) {
     if(isBusy())return false;

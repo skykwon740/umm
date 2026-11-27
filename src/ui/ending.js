@@ -26,7 +26,6 @@ export const RULES_HTML=`<section class="d-rules" aria-label="계급 안내">
   <ul>
     <li>외계인을 <b>처음 만나면</b> 1명.</li>
     <li>같은 외계인은 다시 만나도 <b>한 번만</b> 센다.</li>
-    <li>보따리를 멘 <b>떠돌이 외계인</b>을 클릭해 접촉해도 1명.</li>
     <li>정해진 숫자만큼 만나면 다음 계급. 아직 못 받은 계급 이름은 비밀이다.</li>
   </ul>
 </section>`;

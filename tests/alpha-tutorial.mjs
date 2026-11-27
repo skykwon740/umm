@@ -42,7 +42,7 @@ assert.equal(/가족 후보/.test(source['index.html']+source['src/ui/story.js']
 assert.ok(source['src/ui/story.js'].includes('이 문서에서는 이어질 가족을 찾지 못했어요.'));
 assert.ok(source['src/ui/story.js'].includes('가족을 불러오지 못했어요.'));
 assert.ok(source['src/ui/story.js'].includes('요약이 없는 문서예요.'));
-assert.ok(source['src/ui/mission.js'].includes('떠돌이 외계인 포착. 접촉은 자유다.'),'wanderer spotted notice stays');
+for(const phrase of ['떠돌이 외계인 포착','보따리를 멘'])assert.equal(all.includes(phrase),false,`wanderer guide text is back: ${phrase}`);
 assert.ok(source['src/ui/panel.js'].includes("['Esc', '닫기']")&&source['src/ui/panel.js'].includes('관심사를 1~100자로 입력해 주세요.'));
 assert.ok(source['index.html'].includes('aria-label="정보창 닫기"')&&source['index.html'].includes('id="searchCount"'));
 assert.equal(/aria-describedby="searchCount"/.test(source['index.html']),true);
