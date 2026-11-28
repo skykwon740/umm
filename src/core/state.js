@@ -164,6 +164,18 @@ export function jumpTo(cell) {
   if(!validCell(cell)||!state.cells[cell])return false;
   commit({here:cell,walkPath:[],dirty:true});save();return true;
 }
+// 이 칸이 속한 루트들: 외계인 칸이면 그 외계인이 들어 있는 여정들, 아니면 그 칸을 칠한 루트들
+export function routesAt(cell) {
+  const index=state.nodes.findIndex(n=>nodeCell(n)===cell);
+  const roots=index<0?[]:state.journeys.map((j,i)=>j.trip.includes(index)?i:-1).filter(i=>i>=0);
+  return roots.length?roots:(state.cellRootSets[cell]??[]);
+}
+// 다른 루트의 가 본 외계인에게는 길을 잇지 않고 곧바로 옮겨 간다(사용자 요청 11/28).
+// 캐릭터도 미끄러져 가지 않고 그 자리에 바로 놓이며, 이후 이어 붙이기·걷기는 그 외계인의 루트를 따른다.
+export function teleportTo(cell,now=performance.now()) {
+  if(!validCell(cell)||!state.cells[cell]||state.busy)return false;
+  commit({here:cell,walker:cellVec(cell),walkPath:[],activeRoot:rootAt(cell),lastStep:now,dirty:true});save();return true;
+}
 // 빈 칸도 밟을 수 있다. 처음 밟은 빈 칸은 이번 걸음의 루트 색으로 칠하고, 이미 칠해진 칸은 그대로 둔다.
 export function stepTo(cell,facing=state.facing,now=performance.now()) {
   if(!validCell(cell))return false;
