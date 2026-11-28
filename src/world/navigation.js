@@ -106,10 +106,10 @@ export function createNavigation({project,onArrive,onMessage=()=>{}}) {
       if(state.walker)resumeTracking(state.walker);
       onArrive();return true;
     }
-    const path=(!firstVisit&&paintedPath(state.here,c))||hexPath(state.here,c);
+    const painted=!firstVisit&&paintedPath(state.here,c),path=painted||hexPath(state.here,c);
     const alien=Boolean(node),roots=state.cellRootSets[c]??[];
     const root=alien?(roots.length?roots[0]:state.cellRoots[c]>=0?state.cellRoots[c]:state.activeRoot):state.activeRoot;
-    queueWalk(path,root);
+    queueWalk(path,root,!painted);   // 새로 내는 길은 옛 루트 길 위도 이 루트 색으로 덮는다
     // 걷기가 시작되면 늘 카메라가 캐릭터를 가운데에 두고 따라간다(드래그로 끊었어도). 도착하면 그 자리에 멈춘다.
     if(state.walker)resumeTracking(state.walker);
     return true;

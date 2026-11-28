@@ -23,7 +23,7 @@ function freeze(value) {
 function initialState() {
   return {
     cells:Array(CELL_COUNT).fill(UNKNOWN),guide:Array(CELL_COUNT).fill(0),cellRoots:Array(CELL_COUNT).fill(-1),cellRootSets:Array.from({length:CELL_COUNT},()=>[]),journeys:[],activeRoot:-1,
-    nodes:[],trip:[],route:[],here:-1,walkPath:[],walkRoot:-1,
+    nodes:[],trip:[],route:[],here:-1,walkPath:[],walkRoot:-1,walkPaintOver:false,
     dirty:true,walker:null,facing:1,lastStep:-1e9,alienJumpAt:0,
     revealing:false,pending:false,upcoming:null,holding:false,busy:false,
   };
@@ -155,7 +155,9 @@ export function visitCurrent() {
   const cells=state.cells.slice();cells[state.here]=ENTERED;commit({cells,dirty:true});save();return true;
 }
 // root: 걸으면서 처음 밟는 빈 칸을 칠할 루트
-export function queueWalk(path,root=state.activeRoot) { commit({walkPath:path.filter(validCell),walkRoot:root,dirty:true}); }
+// paintOver: 새로 내는 길이면 true. 다른 루트가 지나간 길 칸도 이 루트 색으로 덮는다(사용자 요청 11/28).
+// 칠해진 길을 따라 되돌아가는 걸음은 false: 옛길 색을 바꾸지 않는다.
+export function queueWalk(path,root=state.activeRoot,paintOver=false) { commit({walkPath:path.filter(validCell),walkRoot:root,walkPaintOver:paintOver,dirty:true}); }
 export function nextWalkStep() {
   const next=state.walkPath[0];
   if(next!==undefined)commit({walkPath:state.walkPath.slice(1)});return next;
@@ -184,12 +186,19 @@ export function stepTo(cell,facing=state.facing,now=performance.now()) {
   const a=state.route.indexOf(state.here),b=state.route.indexOf(cell);
   if(a>=0&&b>=0&&Math.abs(a-b)<=3)for(let i=Math.min(a,b);i<=Math.max(a,b);i++)walked(state.route[i]);
   walked(cell);
+  const root=state.walkRoot,validRoot=root>=0&&root<state.journeys.length;
   if(cells[cell]===UNKNOWN) {
-    cells[cell]=ROAD;const root=state.walkRoot;
-    if(root>=0&&root<state.journeys.length) {
+    cells[cell]=ROAD;
+    if(validRoot) {
       const cellRoots=state.cellRoots.slice(),cellRootSets=state.cellRootSets.slice();
       cellRoots[cell]=root;addRootToCell(cellRootSets,cell,root);Object.assign(patch,{cellRoots,cellRootSets});
     }
+  } else if(state.walkPaintOver&&validRoot&&(cells[cell]===ROAD||cells[cell]===PLAN)&&state.cellRootSets[cell]?.[0]!==root) {
+    // 다른 루트의 길 위를 새 루트가 지나간다: 맨 위(그려지는 색)를 새 루트로. 옛 루트도 그 칸을 지나간 기록으로 남는다.
+    // 외계인이 서 있는 칸(BLDG·ENTERED)은 그 외계인의 색이라 덮지 않는다.
+    const cellRoots=state.cellRoots.slice(),cellRootSets=state.cellRootSets.slice();
+    cellRoots[cell]=root;cellRootSets[cell]=[root,...cellRootSets[cell].filter(r=>r!==root)];
+    Object.assign(patch,{cellRoots,cellRootSets});
   }
   commit({...patch,cells,guide,here:cell,facing,lastStep:now,dirty:true});clearTimeout(saveTimer);saveTimer=setTimeout(save,250);return true;
 }
