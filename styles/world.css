@@ -7,3 +7,5 @@
   .lb.in { color:var(--ui); }
   .lb.old { color:var(--dim); }
 .lb.destination {color:var(--ui);border:1px solid var(--ui);}
+/* 캐릭터가 시야 밖일 때만, 오른쪽 패널을 뺀 월드 영역의 아래 가운데에 뜬다 */
+#follow {position:fixed;bottom:16px;left:calc((100vw - min(max(240px, 26vw), 50vw)) / 2);transform:translateX(-50%);z-index:2;white-space:nowrap;}

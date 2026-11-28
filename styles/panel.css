@@ -21,7 +21,6 @@
   #hint { padding:12px; border-top:2px solid var(--ui); color:var(--fg); line-height:1.9; }
   #hint span { display:block; }
   kbd { font:inherit; color:var(--bg); background:var(--ui); padding:1px 5px; margin-right:4px; }
-  #actions > * { width:100%; margin-top:10px; }
   #bar { display:flex; gap:6px; }
 
   #status {padding:0 12px;color:var(--fg);line-height:1.6;}
@@ -29,10 +28,10 @@
 #side {overflow:auto;}
 #routeBox {flex:1 0 140px;}
 #searchHelp,#searchCount {font-size:12px;color:#9aa7ae;margin-top:6px;line-height:1.5;}
-#interestPanel {padding:12px;border-bottom:2px solid var(--ui);}
-#interestPanel button {margin:4px 0;}
-#heart[aria-pressed="true"] {color:#ffafbb;}
-#memoText {display:block;box-sizing:border-box;width:100%;resize:vertical;margin-top:6px;font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--dim);padding:6px;}
-#memoEditor label,#memoCount,#memoStatus {font-size:12px;line-height:1.6;}
-#again {overflow-wrap:anywhere;}
 #c {touch-action:none;}
+#toggles {display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:10px;}
+#toggles label {display:flex;align-items:center;gap:6px;cursor:pointer;}
+#toggles input {flex:none;width:16px;height:16px;padding:0;accent-color:var(--ui);}
+#chain li button {display:block;width:100%;padding:0;border:0;background:none;color:var(--fg);text-align:left;overflow-wrap:anywhere;}
+#chain li button:hover {background:none;text-decoration:underline;}
+#chain li.here button,#chain li.in button {color:var(--route-color);}

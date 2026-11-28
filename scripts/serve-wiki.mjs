@@ -11,6 +11,8 @@ http.createServer(async(req,res)=>{
     const pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);
     // This preview serves the root explorer only, never .git or local records.
     if(!['GET','HEAD'].includes(req.method)) {res.writeHead(405);res.end();return;}
+    // '%2F' 같은 인코딩된 '/'는 URL 정규화를 지나 '..'로 남는다 → src·styles 밖으로 나가지 못하게 막는다
+    if(pathname.split('/').includes('..'))throw new Error('not found');
     if(pathname!=='/'&&pathname!=='/index.html'&&!/^\/(src|styles)\/[\w./-]+$/.test(pathname)&&!/^\/assets\/[\w.-]+\.png$/.test(pathname))throw new Error('not found');
     const target=path.resolve(root,'.'+(pathname==='/'?'/index.html':pathname));
     const relative=path.relative(root,target);

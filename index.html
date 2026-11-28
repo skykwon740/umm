@@ -4,68 +4,77 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Web Globe</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@2.40.3/dist/galmuri.css">
 <link rel="stylesheet" href="styles/base.css">
 <link rel="stylesheet" href="styles/world.css">
 <link rel="stylesheet" href="styles/panel.css">
 <link rel="stylesheet" href="styles/results.css">
 <link rel="stylesheet" href="styles/story.css">
 <link rel="stylesheet" href="styles/mission.css">
+<link rel="stylesheet" href="styles/home.css">
 </head>
 <body>
 <canvas id="c"></canvas>
 <canvas id="fx"></canvas>
 <div id="labels"></div>
+<aside id="viewer" aria-label="보기 창" hidden>
+  <div class="viewer-head">
+    <strong id="viewerTitle"></strong>
+    <button id="viewerClose" type="button" aria-label="창 닫기">닫기</button>
+  </div>
+  <iframe id="wikiFrame" title="위키백과 문서" referrerpolicy="no-referrer" hidden></iframe>
+  <ul id="imageGrid" aria-label="위키백과 이미지" hidden></ul>
+  <p id="viewerNote" role="status" hidden></p>
+  <a id="viewerExternal" class="btn" target="_blank" rel="noopener noreferrer"></a>
+</aside>
 <div id="resultActions" role="group" aria-label="도착한 외계인" hidden>
   <div class="result-head">
     <strong id="resultTitle"></strong>
-    <button id="closeStory" type="button" aria-label="이야기 닫기" hidden>닫기</button>
+    <button id="closeStory" type="button" aria-label="정보창 닫기">닫기</button>
   </div>
-  <button id="openStory" type="button">이야기 듣기</button>
   <section id="story" aria-labelledby="resultTitle" tabindex="-1" hidden>
     <p id="storySummary" aria-live="polite"></p>
     <div class="result-links">
-      <a id="openWiki" class="btn go" target="_blank" rel="noopener noreferrer">위키백과 원문</a>
-      <a id="openImages" class="btn" target="_blank" rel="noopener noreferrer">구글 이미지</a>
+      <button id="openWiki" type="button" class="btn go" aria-expanded="false" aria-controls="viewer">위키백과 원문</button>
+      <button id="openImages" type="button" class="btn" aria-expanded="false" aria-controls="viewer">이미지</button>
     </div>
-    <button id="embedWiki" type="button" aria-expanded="false" aria-controls="wikiFrame">창 안에서 보기</button>
-    <iframe id="wikiFrame" title="위키백과 문서" referrerpolicy="no-referrer" hidden></iframe>
+    <div class="interest">
+      <button id="heart" type="button" aria-label="관심 표시" aria-pressed="false">♡</button>
+      <div class="memo-box">
+        <label for="memoText">메모</label>
+        <textarea id="memoText" maxlength="500" rows="3" aria-describedby="memoCount"></textarea>
+        <span id="memoCount">0/500</span>
+      </div>
+    </div>
+    <p id="memoStatus" role="status"></p>
     <p class="story-source">출처: 위키백과 (CC BY-SA 4.0)</p>
     <div id="storyReaction" data-slot="reaction"></div>
-    <h3 id="familyTitle">가족 후보</h3>
+    <div class="family-head">
+      <h3 id="familyTitle"></h3>
+      <button id="familyReroll" type="button" aria-label="가족 다시 뽑기">↻</button>
+    </div>
+    <p id="familyRule">위키백과 문서 링크 단어 중 랜덤 3개</p>
     <p id="familyGuide" aria-live="polite"></p>
     <ul id="familyBoxes" aria-labelledby="familyTitle"></ul>
     <button id="storyRetry" type="button" hidden>다시 불러오기</button>
   </section>
 </div>
 <div id="top">
-  <div id="found"><span>발견</span><div id="meter"><i></i></div><span id="pct"></span></div>
+  <div id="found"><span id="foundLabel">발견한 외계인 수</span><b id="foundNum"></b><div id="meter"></div><small id="foundRank"></small></div>
 </div>
+<button id="follow" type="button" hidden>캐릭터로 돌아가기</button>
 <aside id="side">
   <div id="controls">
     <form id="bar">
-      <input id="q" aria-label="탐험을 시작할 관심사" placeholder="관심사" autocomplete="off" maxlength="100" aria-describedby="searchHelp searchCount">
+      <input id="q" aria-label="탐험을 시작할 관심사" placeholder="관심사" autocomplete="off" maxlength="100" aria-describedby="searchCount">
       <button id="goBtn">출발</button>
     </form>
-    <p id="searchHelp">관심사를 1~100자로 입력해 주세요.</p>
     <p id="searchCount">0/100</p>
-    <div id="actions">
-      <button id="follow" type="button">캐릭터로 돌아가기</button>
-      <button id="again" type="button" hidden>이 주소에서 다시 출발</button>
+    <div id="toggles">
+      <label><input id="autoMove" type="checkbox" checked> 자동 이동</label>
     </div>
   </div>
   <p id="status" role="status" aria-live="polite"></p>
-  <section id="interestPanel" aria-label="현재 단어의 관심 표시와 메모" hidden>
-    <button id="heart" type="button" aria-pressed="false">♡ 관심 표시</button>
-    <button id="memoToggle" type="button" aria-expanded="false" aria-controls="memoEditor">메모</button>
-    <form id="memoEditor" hidden>
-      <label for="memoText">메모 (다른 장소로 이동하기 전에 저장해 주세요)</label>
-      <textarea id="memoText" maxlength="500" rows="4" aria-describedby="memoCount"></textarea>
-      <span id="memoCount">0/500</span>
-      <button type="submit">메모 저장</button>
-    </form>
-    <p id="memoStatus" role="status"></p>
-  </section>
   <div id="routeBox"><h2>루트</h2><div id="chain"></div></div>
   <div id="hint"></div>
 </aside>

@@ -1,30 +1,70 @@
-/* 외계인 앞 '이야기 듣기'와 펼쳐진 이야기 창. 상자 자리·크기는 results.css의 #resultActions를 따른다. */
+/* 외계인 정보창과 그 옆 보기 창. 정보창의 자리·크기는 results.css의 #resultActions를 따른다. */
 .result-head {display:flex;align-items:flex-start;gap:6px;}
 .result-head #resultTitle {flex:1;}
 #closeStory {padding:2px 8px;}
-#openStory {display:block;width:100%;min-height:44px;background:var(--ui);color:var(--bg);}
-#openStory:hover {background:var(--fg);border-color:var(--fg);}
 
 #resultActions.open {transform:translate(-50%,0);max-height:calc(100vh - 60px);overflow:auto;overscroll-behavior:contain;}
-#story {display:grid;gap:8px;}
+#story {display:grid;grid-template-columns:minmax(0,1fr);gap:8px;}
 #story:focus {outline:none;}
-#storySummary {font-family:'Galmuri11',monospace;font-size:12px;line-height:1.6;}
-#embedWiki {width:100%;}
-#wikiFrame {display:block;width:100%;height:320px;border:2px solid var(--dim);background:#fff;}
+/* 요약은 세 줄까지, 넘치면 말줄임 */
+#storySummary {font-family:'Galmuri11',monospace;font-size:12px;line-height:1.6;display:-webkit-box;
+  -webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3;overflow:hidden;}
+#openWiki {background:var(--ui);color:var(--bg);}
+#openWiki:hover {background:var(--fg);border-color:var(--fg);}
+#openImages[aria-expanded="true"],#openWiki[aria-expanded="true"] {border-color:var(--fg);}
+
+/* 관심 표시(하트)와 항상 보이는 메모 칸 */
+.interest {display:grid;grid-template-columns:44px 1fr;gap:6px;align-items:start;}
+#heart {width:44px;height:44px;padding:0;font-size:20px;line-height:1;}
+#heart[aria-pressed="true"] {color:#ffafbb;border-color:#ffafbb;}
+.memo-box {display:grid;gap:2px;}
+.memo-box label {font-size:12px;color:#9aa7ae;}
+#memoText {display:block;width:100%;min-height:44px;resize:vertical;font:inherit;font-size:12px;line-height:1.5;color:var(--fg);
+  background:var(--bg);border:2px solid var(--dim);padding:6px;}
+#memoText:focus {border-color:var(--ui);}
+#memoCount {justify-self:end;font-size:11px;color:#9aa7ae;}
+#memoStatus {font-size:12px;line-height:1.5;color:#ffafbb;}
+#memoStatus:empty {display:none;}
+
 .story-source {font-family:'Galmuri11',monospace;font-size:11px;color:#9aa7ae;}
 #storyReaction:empty {display:none;}
-#story h3 {justify-self:start;font:inherit;color:var(--bg);background:var(--ui);padding:1px 5px;}
-#familyGuide {font-family:'Galmuri11',monospace;font-size:12px;line-height:1.5;color:#9aa7ae;}
+.family-head {display:flex;align-items:center;justify-content:space-between;gap:6px;}
+#story h3 {min-width:0;font:inherit;color:var(--bg);background:var(--ui);padding:1px 5px;overflow-wrap:anywhere;}
+#familyReroll {flex:none;width:32px;height:32px;padding:0;line-height:1;}
+#familyReroll:disabled {opacity:.4;}
+#familyRule,#familyGuide {font-family:'Galmuri11',monospace;font-size:12px;line-height:1.5;color:#9aa7ae;}
 #familyGuide:empty {display:none;}
-#familyBoxes {list-style:none;display:grid;gap:6px;}
-#familyBoxes button {display:grid;gap:3px;width:100%;min-height:44px;text-align:left;color:var(--node);border-color:var(--node);}
-#familyBoxes button span {overflow-wrap:anywhere;}
-#familyBoxes button small {font-family:'Galmuri11',monospace;font-size:11px;line-height:1.4;color:#9aa7ae;}
+#familyBoxes {list-style:none;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:0 3px 3px 0;}
+/* 가족 선택지: 링크·일반 버튼(하늘색 테두리)과 달리 주황 테두리와 픽셀 그림자가 있는 카드 */
+#familyBoxes .family-card {display:block;width:100%;min-height:44px;text-align:left;color:var(--node);background:#1d1d26;
+  border:2px solid var(--node);box-shadow:3px 3px 0 var(--node);}
+#familyBoxes .family-card span {display:block;overflow-wrap:anywhere;}
+#familyBoxes .family-card:hover,#familyBoxes .family-card:focus-visible {background:#2b2420;transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--node);}
+#familyBoxes .family-card:active {transform:translate(2px,2px);box-shadow:1px 1px 0 var(--node);}
+/* 설명은 마우스를 올리거나 키보드로 고른 카드에서만, 한 줄로 */
+#familyBoxes .family-card small {display:none;margin-top:3px;font-family:'Galmuri11',monospace;font-size:11px;line-height:1.4;color:#9aa7ae;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#familyBoxes .family-card:hover small,#familyBoxes .family-card:focus-visible small {display:block;}
 #storyRetry {width:100%;}
 
-/* 좁은 화면: 지구 옆 빈 곳이 좁아서 펼친 이야기는 아래에서 올라오는 판으로 띄운다 */
+/* 보기 창: 화면 오른쪽에 뜨는 위키백과 원문 / 이미지 격자. 크기는 예전 '창 안에서 보기'와 같다 */
+#viewer {position:fixed;z-index:3;top:52px;right:8px;width:340px;max-width:calc(100vw - 16px);padding:7px;background:var(--bg);
+  border:2px solid var(--ui);display:grid;gap:6px;}
+.viewer-head {display:flex;align-items:center;gap:6px;}
+.viewer-head strong {flex:1;color:var(--node);}
+#viewerClose {padding:2px 8px;}
+#wikiFrame {display:block;width:100%;height:320px;border:2px solid var(--dim);background:#fff;}
+#imageGrid {list-style:none;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;align-content:start;height:320px;overflow:auto;
+  overscroll-behavior:contain;border:2px solid var(--dim);padding:4px;}
+#imageGrid img {display:block;width:100%;aspect-ratio:1;object-fit:cover;background:#000;}
+#viewerNote {font-family:'Galmuri11',monospace;font-size:12px;line-height:1.5;color:#9aa7ae;}
+#viewerExternal {display:flex;align-items:center;justify-content:center;text-align:center;min-height:44px;padding:6px;line-height:1.5;}
+
+/* 좁은 화면: 지구 옆 빈 곳이 좁아서 펼친 정보창은 아래에서 올라오는 판으로 띄운다. 보기 창은 위쪽에 겹쳐 뜬다 */
 @media(max-width:600px){
   #resultActions.open {left:0;right:0;bottom:0;top:auto;width:auto;max-width:none;max-height:62vh;transform:none;z-index:3;
     border-width:2px 0 0;}
-  #wikiFrame {height:260px;}
+  #viewer {left:8px;right:8px;width:auto;z-index:4;}
+  #wikiFrame,#imageGrid {height:260px;}
+  #viewer:not([hidden]) ~ #resultActions.open {max-height:max(160px,calc(100vh - 440px));}
 }

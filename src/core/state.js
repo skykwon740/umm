@@ -1,4 +1,5 @@
-import {CELL_COUNT,cellVec,cellNeighbours,hash,ll,nodeCell,vec,cellOf,legacyCellVec} from './grid.js';
+import {CELL_COUNT,cellVec,hash,ll,nodeCell,vec,cellOf,legacyCellVec} from './grid.js';
+import {storageKey} from './planets.js';
 
 export const UNKNOWN=0,PLAN=1,ROAD=2,BLDG=3,ENTERED=4,GUIDE=5,GUIDE_OFF=6;
 const validCell=c=>Number.isInteger(c)&&c>=0&&c<CELL_COUNT;
@@ -22,8 +23,8 @@ function freeze(value) {
 function initialState() {
   return {
     cells:Array(CELL_COUNT).fill(UNKNOWN),guide:Array(CELL_COUNT).fill(0),cellRoots:Array(CELL_COUNT).fill(-1),cellRootSets:Array.from({length:CELL_COUNT},()=>[]),journeys:[],activeRoot:-1,
-    nodes:[],trip:[],route:[],here:-1,walkPath:[],
-    dirty:true,walker:null,facing:1,lastStep:-1e9,blinkOn:true,alienJumpAt:0,
+    nodes:[],trip:[],route:[],here:-1,walkPath:[],walkRoot:-1,
+    dirty:true,walker:null,facing:1,lastStep:-1e9,alienJumpAt:0,
     revealing:false,pending:false,upcoming:null,holding:false,busy:false,
   };
 }
@@ -34,7 +35,7 @@ function commit(patch) { state=freeze({...state,...patch}); }
 
 export function save(storage) {
   try {
-    (storage??globalThis.localStorage).setItem('webglobe3',JSON.stringify({
+    (storage??globalThis.localStorage).setItem(storageKey('webglobe3'),JSON.stringify({
       c:state.cells.join(''),n:state.nodes,r:state.route,t:state.trip,
       h:state.here,g:state.route.filter(c=>state.guide[c]),cr:state.cellRoots,cs:state.cellRootSets,j:state.journeys,
     }));return true;
@@ -42,7 +43,7 @@ export function save(storage) {
 }
 export function load(storage) {
   try {
-    const s=JSON.parse((storage??globalThis.localStorage).getItem('webglobe3'));
+    const s=JSON.parse((storage??globalThis.localStorage).getItem(storageKey('webglobe3')));
     if(!s||typeof s.c!=='string'||![CELL_COUNT,3456].includes(s.c.length)||!/^[0-6]+$/.test(s.c))return false;
     const nodes=s.n??[],route=s.r??[],trip=s.t??[];
     if(!Array.isArray(nodes)||nodes.some(n=>!n||typeof n.t!=='string'||!['ko','en'].includes(n.lang)||!Number.isFinite(n.lat)||!Number.isFinite(n.lon)))return false;
@@ -65,13 +66,8 @@ export function load(storage) {
     if(!journeys.length&&trip.length)journeys=[{start:nodes[trip[0]]?.t??'',color:routeColor(0),trip}];
     const cellRootSets=Array.from({length:CELL_COUNT},(_,c)=>Array.isArray(s.cs?.[c])?s.cs[c].filter(root=>Number.isInteger(root)&&root>=0&&root<journeys.length):cellRoots[c]>=0&&cellRoots[c]<journeys.length?[cellRoots[c]]:[]);
     const activeRoot=journeys.length-1;
+    // 따로 시작한 여정은 섬으로 둔다. 예전에 이어 붙여 저장된 칸은 그대로 읽는다.
     state=freeze({...initialState(),nodes,route:migratedRoute,trip,here,guide,cells,cellRoots,cellRootSets,journeys,activeRoot});
-    let repaired=false;
-    for(let root=1;root<journeys.length;root++) {
-      const first=journeys[root].trip[0],node=nodes[first];
-      if(node&&connectRouteToNetwork(nodeCell(node),root))repaired=true;
-    }
-    if(repaired)save();
     return true;
   } catch { return false; }
 }
@@ -83,17 +79,30 @@ export function initializeWalker() {
   const last=state.nodes.at(-1),here=state.here<0&&last?nodeCell(last):state.here;
   commit({here,walker:here>=0?cellVec(here):vec(20,0),dirty:true});
 }
+// 출발이 실패하면(위키에 없는 단어·통신 실패) 출발 직전의 자리와 루트로 되돌린다
+let beforeJourney=null;
 export function beginJourney(start='') {
   if(state.busy)return false;
+  beforeJourney=state;
   const journeys=[...state.journeys,{start,color:routeColor(state.journeys.length),trip:[]}];
   commit({cells:state.cells.map(c=>c===PLAN?UNKNOWN:c),guide:Array(CELL_COUNT).fill(0),journeys,activeRoot:journeys.length-1,
     trip:[],route:[],here:-1,walkPath:[],walker:null,upcoming:null,holding:false,
     revealing:true,pending:true,busy:true,dirty:true});return true;
 }
+// 새 외계인의 칸: 단어로 정해지는 칸. 다른 외계인이 서 있거나 이미 칠해진 칸이면 다음 후보 칸으로 옮긴다
+// (같은 칸에 둘이 서면 뒤에 놓인 외계인은 정보창도 첫 접촉도 할 수 없다. 옛길 위에 놓이면 외계인과 거기까지의 길이
+// 옛 루트 색이 되어 새 루트 색이 가려진다: 팀 피드백 11/27). 빈 칸을 못 찾으면 외계인만 피한다
+function freeCell(t) {
+  const taken=new Set(state.nodes.map(nodeCell));
+  for(let k=0;k<64;k++){const cell=hash(k?`${t}#${k}`:t)%CELL_COUNT;if(!taken.has(cell)&&!state.cells[cell])return cell;}
+  const start=hash(t)%CELL_COUNT;
+  for(let k=0;k<CELL_COUNT;k++){const cell=(start+k)%CELL_COUNT;if(!taken.has(cell))return cell;}
+  return start;
+}
 export function addJourneyNode(t,lang,d) {
   const nodes=state.nodes.slice();let index=nodes.findIndex(n=>n.t===t&&n.lang===lang);
   if(index<0) {
-    const [lat,lon]=ll(cellVec(hash(t)%CELL_COUNT));index=nodes.length;nodes.push({t,lang,lat,lon});
+    const [lat,lon]=ll(cellVec(freeCell(t)));index=nodes.length;nodes.push({t,lang,lat,lon});
   }
   if(d)nodes[index]={...nodes[index],d};
   const cell=nodeCell(nodes[index]),cells=state.cells.slice(),cellRoots=state.cellRoots.slice(),cellRootSets=state.cellRootSets.slice();
@@ -104,48 +113,16 @@ export function addJourneyNode(t,lang,d) {
   const trip=[...state.trip,index],journeys=state.journeys.map((j,i)=>i===state.activeRoot?{...j,start:j.start||t,trip:[...j.trip,index]}:j);
   commit({nodes,cells,cellRoots,cellRootSets,route,trip,journeys,dirty:true});save();return state.nodes[index];
 }
-export function previewJourneyNode(t,d) { commit({upcoming:{t,d},dirty:true}); }
-export function clearJourneyPreview() { commit({upcoming:null,dirty:true}); }
-export function revealRoute(cellIds) {
-  const cells=state.cells.slice(),guide=state.guide.slice(),route=state.route.slice(),cellRoots=state.cellRoots.slice(),cellRootSets=state.cellRootSets.slice();
-  for(const cell of cellIds)if(validCell(cell)&&route.at(-1)!==cell) {
-    route.push(cell);guide[cell]=1;if(!cells[cell])cells[cell]=PLAN;if(cellRoots[cell]<0&&state.activeRoot>=0)cellRoots[cell]=state.activeRoot;
-    addRootToCell(cellRootSets,cell,state.activeRoot);
-  }
-  commit({cells,guide,route,cellRoots,cellRootSets,dirty:true});
-}
-export function connectRouteToNetwork(startCell,root=state.activeRoot) {
-  if(!validCell(startCell)||root<1)return false;
-  const targets=new Set();
-  for(let c=0;c<CELL_COUNT;c++) {
-    const owners=state.cellRootSets[c]??[];
-    if(c!==startCell&&state.cells[c]>=ROAD&&(owners.some(owner=>owner<root)||owners.length===0))targets.add(c);
-  }
-  if(!targets.size)return false;
-  const previous=new Map([[startCell,-1]]),queue=[startCell];let target=-1;
-  for(let i=0;i<queue.length&&target<0;i++)for(const next of cellNeighbours(queue[i])) {
-    if(previous.has(next))continue;
-    previous.set(next,queue[i]);
-    if(targets.has(next)){target=next;break;}
-    queue.push(next);
-  }
-  if(target<0)return false;
-  const path=[];for(let c=target;c!==-1;c=previous.get(c))path.push(c);path.reverse();
-  const cells=state.cells.slice(),cellRoots=state.cellRoots.slice(),cellRootSets=state.cellRootSets.slice(),route=state.route.slice();
-  for(const cell of path.slice(1)) {
-    if(!cells[cell]||cells[cell]===PLAN)cells[cell]=ROAD;
-    if(cellRoots[cell]<0)cellRoots[cell]=root;
-    addRootToCell(cellRootSets,cell,root);
-    if(root===state.activeRoot&&route.at(-1)!==cell)route.push(cell);
-  }
-  commit({cells,cellRoots,cellRootSets,route,dirty:true});return true;
-}
-export function holdJourney() { commit({holding:true,dirty:true}); }
 export function completeJourney() {
-  const start=state.route[0];
-  commit({pending:false,revealing:false,busy:false,upcoming:null,holding:false,dirty:true,
-    ...(start===undefined?{}:{here:start,walker:cellVec(start),facing:1})});
-  if(start!==undefined)save();return start!==undefined;
+  const start=state.route[0],before=beforeJourney;beforeJourney=null;
+  const done={pending:false,revealing:false,busy:false,upcoming:null,holding:false,dirty:true};
+  if(start===undefined) {
+    // 외계인을 하나도 놓지 못했다: 캐릭터·루트를 출발 전으로 되돌리고 빈 루트를 남기지 않는다
+    commit({...done,...(before&&{cells:before.cells,guide:before.guide,journeys:before.journeys,activeRoot:before.activeRoot,
+      trip:before.trip,route:before.route,here:before.here,walker:before.walker})});
+    return false;
+  }
+  commit({...done,here:start,walker:cellVec(start),facing:1});save();return true;
 }
 // 고른 가족까지 길을 이어 붙인다. 지금까지의 경로와 캐릭터 위치는 그대로 둔다.
 export function beginExtension() {
@@ -167,7 +144,8 @@ export function visitCurrent() {
   if(state.cells[state.here]!==BLDG)return false;
   const cells=state.cells.slice();cells[state.here]=ENTERED;commit({cells,dirty:true});save();return true;
 }
-export function queueWalk(path) { commit({walkPath:path.filter(validCell),dirty:true}); }
+// root: 걸으면서 처음 밟는 빈 칸을 칠할 루트
+export function queueWalk(path,root=state.activeRoot) { commit({walkPath:path.filter(validCell),walkRoot:root,dirty:true}); }
 export function nextWalkStep() {
   const next=state.walkPath[0];
   if(next!==undefined)commit({walkPath:state.walkPath.slice(1)});return next;
@@ -176,13 +154,22 @@ export function jumpTo(cell) {
   if(!validCell(cell)||!state.cells[cell])return false;
   commit({here:cell,walkPath:[],dirty:true});save();return true;
 }
+// 빈 칸도 밟을 수 있다. 처음 밟은 빈 칸은 이번 걸음의 루트 색으로 칠하고, 이미 칠해진 칸은 그대로 둔다.
 export function stepTo(cell,facing=state.facing,now=performance.now()) {
-  if(!validCell(cell)||!state.cells[cell])return false;
-  const cells=state.cells.slice(),guide=state.guide.slice();
+  if(!validCell(cell))return false;
+  const cells=state.cells.slice(),guide=state.guide.slice(),patch={};
   const walked=c=>{guide[c]=0;if(cells[c]===PLAN)cells[c]=ROAD;};
   const a=state.route.indexOf(state.here),b=state.route.indexOf(cell);
   if(a>=0&&b>=0&&Math.abs(a-b)<=3)for(let i=Math.min(a,b);i<=Math.max(a,b);i++)walked(state.route[i]);
-  walked(cell);commit({cells,guide,here:cell,facing,lastStep:now,dirty:true});clearTimeout(saveTimer);saveTimer=setTimeout(save,250);return true;
+  walked(cell);
+  if(cells[cell]===UNKNOWN) {
+    cells[cell]=ROAD;const root=state.walkRoot;
+    if(root>=0&&root<state.journeys.length) {
+      const cellRoots=state.cellRoots.slice(),cellRootSets=state.cellRootSets.slice();
+      cellRoots[cell]=root;addRootToCell(cellRootSets,cell,root);Object.assign(patch,{cellRoots,cellRootSets});
+    }
+  }
+  commit({...patch,cells,guide,here:cell,facing,lastStep:now,dirty:true});clearTimeout(saveTimer);saveTimer=setTimeout(save,250);return true;
 }
 let lastAnimation=null,saveTimer;
 export function flushMovementSave() { clearTimeout(saveTimer);save(); }
@@ -190,8 +177,7 @@ export function tickAnimation(now) {
   const dt=lastAnimation===null?1000/60:Math.max(0,Math.min(50,now-lastAnimation));lastAnimation=now;
   const interval=Math.max(32,110/(1+state.walkPath.length/20));
   const alpha=1-Math.pow(.65,dt/(1000/60)*110/interval);
-  const blinkOn=Math.floor(now/450)%2===0,patch={};let follow=null;
-  if(blinkOn!==state.blinkOn){patch.blinkOn=blinkOn;if(state.route.length)patch.dirty=true;}
+  const patch={};let follow=null;
   if(state.alienJumpAt&&now-state.alienJumpAt<760)patch.dirty=true;
   const active=state.walker&&state.here>=0&&!state.revealing;
   if(active) {

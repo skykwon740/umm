@@ -1,4 +1,4 @@
-/* D 트랙: 무전 창 · 스포트라이트 · 진행도 칩 · 결과 화면 · 떠돌이 외계인 */
+/* D 트랙: 무전 창 · 스포트라이트 · 결과 화면 · 떠돌이 외계인 */
 
 /* spotlight */
 .d-shade {position:fixed;inset:0;z-index:20;pointer-events:none;}
@@ -28,13 +28,6 @@
 .d-skip:hover {background:none;color:var(--fg);}
 .d-radio.d-notice {cursor:default;min-height:88px;padding-bottom:16px;}
 @media(max-width:600px){.d-radio {padding-left:16px;}.d-radio::before,.d-radio::after {display:none;}.d-skip {left:16px;}}
-
-/* progress chip in the top bar */
-.d-chip {display:flex;gap:8px;align-items:center;position:relative;padding:2px 8px 4px;
-  font-family:'Galmuri11',monospace;font-size:12px;white-space:nowrap;}
-.d-chip b {font-weight:normal;color:var(--node);}
-.d-chip span {color:var(--fg);}
-.d-chip i {position:absolute;left:0;bottom:0;height:2px;width:var(--r);background:var(--node);}
 
 /* side panel tools */
 .d-tools {display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 12px;border-top:2px solid var(--ui);}
@@ -81,7 +74,10 @@
 .d-recent-h {color:#9aa7ae;font-family:'Galmuri11',monospace;font-size:12px;margin-bottom:6px;}
 .d-recent {list-style:none;display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px;}
 .d-recent li {border:2px solid var(--dim);padding:1px 6px;font-family:'Galmuri11',monospace;font-size:12px;}
+.d-planet {margin-left:8px;color:#9aa7ae;font-family:'Galmuri11',monospace;font-size:12px;}
+.d-actions {display:grid;gap:8px;}
 .d-continue {width:100%;background:var(--ui);color:var(--bg);}
+.d-home {width:100%;}
 .d-continue:hover {background:var(--fg);border-color:var(--fg);}
 
 /* wanderer */
@@ -114,3 +110,26 @@
 .d-briefing .d-ladder li.lock p {display:none;}
 .d-briefing .d-ladder li {padding-block:2px;}
 .d-briefing .d-continue {position:sticky;bottom:0;box-shadow:0 -10px 0 var(--bg);}
+
+/* top bar: found-alien gauge (rank-colored segments) + collection button */
+#top {display:flex;gap:12px;align-items:center;}
+#found {flex:1;min-width:0;gap:8px;}
+#foundLabel,#foundNum {white-space:nowrap;}
+#foundNum {font-weight:normal;color:var(--fg);}
+#foundRank {color:#9aa7ae;font-family:'Galmuri11',monospace;font-size:12px;white-space:nowrap;}
+#meter {display:flex;min-width:60px;padding:0;gap:0;}
+#meter .seg {display:block;flex-basis:0;min-width:0;border-left:2px solid var(--ui);background:transparent;}
+#meter .seg:first-child {border-left:0;}
+#meter .seg i {display:block;height:100%;width:0;background:var(--c);}
+.c-open {flex:none;font-size:12px;padding:2px 8px;white-space:nowrap;}
+@media(max-width:600px){#top {gap:8px;padding:12px 10px;}#found {gap:6px;font-size:13px;}#foundRank {display:none;}}
+
+/* collection dialog */
+.c-box .journey-group {margin-bottom:14px;}
+.c-box ul {list-style:none;}
+.c-box li {border-left:2px solid var(--route-color,var(--dim));padding:0 0 10px 10px;}
+.c-word {display:flex;gap:8px;align-items:baseline;}
+.c-heart {color:var(--dim);}
+.c-heart.on {color:#ff8fb1;}
+.c-memo {margin-top:3px;color:#9aa7ae;font-family:'Galmuri11',monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;}
+.c-empty {margin-bottom:14px;color:#9aa7ae;font-family:'Galmuri11',monospace;font-size:12px;}

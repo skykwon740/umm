@@ -1,0 +1,42 @@
+/* 홈화면 = 행성계. 탐험 화면 요소는 모두 숨기고 이 화면만 보인다 */
+.at-home > :not(#home) {display:none !important;}
+#home {position:fixed;inset:0;z-index:50;isolation:isolate;overflow:auto;display:grid;align-content:center;justify-items:center;
+  gap:28px;padding:32px 16px;background:var(--bg);}
+.home-stars {position:fixed;inset:0;width:100%;height:100%;z-index:-1;image-rendering:pixelated;cursor:default;pointer-events:none;}
+#homeTitle {font:inherit;font-size:18px;letter-spacing:.2em;color:var(--bg);background:var(--ui);padding:2px 10px;}
+.home-system {display:flex;align-items:flex-start;gap:28px;}
+/* 왼쪽 별(해): 픽셀 원 + 빛 */
+.home-sun {flex:none;width:36px;height:36px;margin-top:62px;background:#ffe066;
+  clip-path:polygon(33% 0,67% 0,67% 11%,89% 11%,89% 33%,100% 33%,100% 67%,89% 67%,89% 89%,67% 89%,67% 100%,33% 100%,33% 89%,11% 89%,11% 67%,0 67%,0 33%,11% 33%,11% 11%,33% 11%);
+  filter:drop-shadow(0 0 10px #f08a4b);}
+.home-planets {list-style:none;display:flex;gap:20px;position:relative;}
+/* 궤도: 행성 중심을 지나는 점선 */
+.home-planets::before {content:'';position:absolute;left:-28px;right:0;top:80px;border-top:2px dashed var(--dim);z-index:-1;}
+.home-planet {display:grid;justify-items:center;gap:6px;width:184px;padding:8px 8px 12px;border:2px solid transparent;
+  background:transparent;color:var(--fg);text-align:center;}
+/* world.css의 canvas(지구본 전체 화면) 규칙을 끊는다 */
+.home-planet canvas {position:static;inset:auto;width:144px;height:144px;image-rendering:pixelated;cursor:inherit;}
+.home-planet:hover,.home-planet:focus-visible {background:#1d1d26cc;border-color:var(--ui);}
+.home-planet b {font-weight:normal;color:var(--fg);}
+.home-rank {color:var(--ui);}
+.home-meter {display:flex;width:132px;height:10px;border:2px solid var(--ui);}
+.home-meter > span {display:block;flex-basis:0;min-width:0;border-left:2px solid var(--ui);}
+.home-meter > span:first-child {border-left:0;}
+.home-meter i {display:block;height:100%;background:var(--c);}
+.home-planet small {font-family:'Galmuri11',monospace;font-size:12px;line-height:1.5;color:#9aa7ae;}
+.home-planet[aria-disabled="true"] {cursor:not-allowed;}
+.home-planet[aria-disabled="true"]:hover {background:transparent;border-color:var(--dim);}
+.home-planet[aria-disabled="true"] b {color:#9aa7ae;}
+.home-lock {color:#9aa7ae;border:2px solid var(--dim);padding:0 6px;}
+
+@media(max-width:700px){
+  #home {align-content:start;}
+  .home-system {flex-direction:column;align-items:center;gap:12px;}
+  .home-sun {margin-top:0;}
+  .home-planets {flex-direction:column;gap:10px;}
+  .home-planets::before {left:50%;right:auto;top:-12px;bottom:0;border-top:0;border-left:2px dashed var(--dim);}
+  .home-planet {grid-template-columns:96px 1fr;grid-template-rows:auto auto auto;justify-items:start;align-items:center;column-gap:12px;
+    width:min(320px,calc(100vw - 32px));background:#16161ce6;text-align:left;}
+  .home-planet canvas {grid-row:1 / span 4;width:96px;height:96px;}
+  .home-meter {width:100%;}
+}

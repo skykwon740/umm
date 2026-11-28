@@ -23,7 +23,7 @@ const LINES=[
   w=>`길을 잃었어. '${w}' 마을이 어느 쪽인지 알아?`,
 ];
 
-export function createWanderer({canAppear,onMeet,onFollow,onSpotted,demo=false}) {
+export function createWanderer({canAppear,onMeet,onFollow,demo=false}) {
   const root=document.createElement('div');root.className='d-wanderer';root.hidden=true;
   root.innerHTML=`<button type="button" class="d-wbody" aria-label="떠돌이 외계인과 접촉"><canvas width="48" height="48"></canvas></button>
     <div class="d-bubble" hidden><p></p><div><button type="button" class="d-follow">따라가기</button>
@@ -46,7 +46,7 @@ export function createWanderer({canAppear,onMeet,onFollow,onSpotted,demo=false})
     const a=Math.random()*Math.PI*2,d=state.walker?5:8;
     at={lat:lat+Math.sin(a)*d,lon:lon+Math.cos(a)*d};
     drift={lat:(Math.random()-.5)*.02,lon:(Math.random()-.5)*.03};
-    bubble.hidden=true;root.hidden=false;onSpotted?.();
+    bubble.hidden=true;root.hidden=false;
     clearTimeout(leaveTimer);leaveTimer=setTimeout(leave,stay);
   }
   function leave(){root.hidden=true;at=null;bubble.hidden=true;schedule();}

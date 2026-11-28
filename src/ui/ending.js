@@ -2,6 +2,7 @@
 import {state,ROAD} from '../core/state.js';
 import {RANKS,rankOf} from '../core/ranks.js';
 import {progress} from '../core/progress.js';
+import {currentPlanet} from '../core/planets.js';
 
 // 16×20 helmet badge; v=visor, c=collar, k=crown (top rank only)
 const HELMET=[
@@ -23,9 +24,8 @@ export function drawBadge(canvas,index) {
 export const RULES_HTML=`<section class="d-rules" aria-label="계급 안내">
   <h3>계급은 이렇게 오른다</h3>
   <ul>
-    <li>외계인을 클릭해 <b>이야기를 들으면</b> 1명.</li>
+    <li>외계인을 <b>처음 만나면</b> 1명.</li>
     <li>같은 외계인은 다시 만나도 <b>한 번만</b> 센다.</li>
-    <li>보따리를 멘 <b>떠돌이 외계인</b>을 클릭해 접촉해도 1명.</li>
     <li>정해진 숫자만큼 만나면 다음 계급. 아직 못 받은 계급 이름은 비밀이다.</li>
   </ul>
 </section>`;
@@ -35,12 +35,8 @@ function discovered() {
   return (n/state.cells.length*100).toFixed(2);
 }
 
-export function createEnding({onReplayTutorial}={}) {
-  // 진행도 칩 (위쪽 바 오른쪽)
-  const chip=document.createElement('button');
-  chip.type='button';chip.className='d-chip';chip.title='현재 계급 · 누르면 탐사 보고서와 계급 안내';
-  document.getElementById('found')?.append(chip);
-
+// 결과 화면 자리: 결과 페이지는 다른 담당(팀 분담표)이라 지금의 탐사 보고서를 두고, 끝에서 행성계(홈화면)로 돌아간다
+export function createEnding({onReplayTutorial,onHome}={}) {
   // 오른쪽 패널 아래: 탐험 마치기 / 훈련 다시 받기
   const tools=document.createElement('div');tools.className='d-tools';
   tools.innerHTML=`<button type="button" class="d-end">탐험 마치기</button>
@@ -52,18 +48,12 @@ export function createEnding({onReplayTutorial}={}) {
   report.setAttribute('role','dialog');report.setAttribute('aria-modal','true');report.setAttribute('aria-label','탐사 보고서');
   document.body.append(report);
 
-  function updateChip() {
-    const p=progress(),r=rankOf(p.met);
-    chip.innerHTML=`<b>${esc(r.rank.name)}</b><span>외계인 ${p.met}명</span>`+
-      (r.next?`<i style="--r:${(r.ratio*100).toFixed(1)}%"></i>`:'');
-  }
-
   function open() {
     const p=progress(),r=rankOf(p.met),last=!r.next;
     report.innerHTML=`<div class="d-card">
-      <h2>탐사 보고서</h2>
+      <h2>탐사 보고서</h2><span class="d-planet">${esc(currentPlanet().name)}</span>
       <div class="d-hero"><canvas width="96" height="120" aria-hidden="true"></canvas>
-        <div><small>최종 계급</small><strong>${esc(r.rank.name)}</strong><p>${esc(r.rank.line)}</p></div></div>
+        <div><small>최종 계급</small><strong>${esc(r.rank.name)}</strong>${r.rank.line?`<p>${esc(r.rank.line)}</p>`:''}</div></div>
       <dl class="d-stats">
         <div><dt>만난 외계인</dt><dd>${p.met}명</dd></div>
         <div><dt>떠돌이 외계인</dt><dd>${p.wanderers}명</dd></div>
@@ -75,23 +65,23 @@ export function createEnding({onReplayTutorial}={}) {
       ${RULES_HTML}
       <ol class="d-ladder">${RANKS.map((rank,i)=>`<li class="${i<r.index?'got':i===r.index?'now':'lock'}">
         <div><span>${i<=r.index?esc(rank.name):'???'}</span><em>${rank.need}명</em></div>
-        <p>${i<=r.index?esc(rank.line):`외계인 ${rank.need}명을 만나면 공개된다.`}</p></li>`).join('')}</ol>
+        ${i<=r.index?(rank.line?`<p>${esc(rank.line)}</p>`:''):`<p>외계인 ${rank.need}명을 만나면 공개된다.</p>`}</li>`).join('')}</ol>
       ${p.recent.length?`<p class="d-recent-h">최근 만난 외계인</p>
         <ul class="d-recent">${p.recent.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:''}
-      <button type="button" class="d-continue">계속 탐험하기</button>
+      <div class="d-actions"><button type="button" class="d-continue">계속 탐험하기</button>
+        ${onHome?'<button type="button" class="d-home">행성계로</button>':''}</div>
     </div>`;
     drawBadge(report.querySelector('canvas'),r.index);
     report.hidden=false;report.querySelector('.d-continue').focus({preventScroll:true});
     report.querySelector('.d-card').scrollTop=0;
     report.querySelector('.d-continue').onclick=close;
+    const home=report.querySelector('.d-home');if(home)home.onclick=()=>onHome();
   }
   function close() { report.hidden=true; }
   report.addEventListener('click',event=>{if(event.target===report)close();});
   addEventListener('keydown',event=>{if(event.key==='Escape'&&!report.hidden)close();});
 
-  chip.addEventListener('click',open);
   tools.querySelector('.d-end').addEventListener('click',open);
   tools.querySelector('.d-replay').addEventListener('click',()=>onReplayTutorial?.());
-  updateChip();
-  return {open,close,updateChip};
+  return {open,close};
 }
