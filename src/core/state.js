@@ -125,9 +125,19 @@ export function completeJourney() {
   commit({...done,here:start,walker:cellVec(start),facing:1});save();return true;
 }
 // 고른 가족까지 길을 이어 붙인다. 지금까지의 경로와 캐릭터 위치는 그대로 둔다.
+// 가족은 지금 서 있는 외계인의 루트에 붙는다(가장 최근 루트가 아니라). 여러 루트에 속한 외계인이면
+// 지금 루트를 그대로 쓰고, 아니면 그 외계인이 들어 있는 가장 최근 루트를 쓴다.
+export function rootAt(cell) {
+  const index=state.nodes.findIndex(n=>nodeCell(n)===cell);
+  const roots=state.journeys.map((j,i)=>index>=0&&j.trip.includes(index)?i:-1).filter(i=>i>=0);
+  if(roots.includes(state.activeRoot))return state.activeRoot;
+  if(roots.length)return roots.at(-1);
+  const painted=state.cellRootSets[cell]??[];
+  return painted.includes(state.activeRoot)?state.activeRoot:painted.length?painted.at(-1):state.activeRoot;
+}
 export function beginExtension() {
   if(state.busy||state.here<0)return false;
-  commit({walkPath:[],revealing:true,pending:true,busy:true,dirty:true});return true;
+  commit({activeRoot:rootAt(state.here),walkPath:[],revealing:true,pending:true,busy:true,dirty:true});return true;
 }
 export function finishExtension() {
   commit({pending:false,revealing:false,busy:false,upcoming:null,holding:false,dirty:true});save();
