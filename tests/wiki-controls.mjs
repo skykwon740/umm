@@ -47,7 +47,7 @@ class Element {
   getContext(){return {createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),setTransform(){},fillRect(){}};}
 }
 const elements=new Map();
-globalThis.document={createElement(){return new Element();},getElementById(id){if(!elements.has(id))elements.set(id,new Element());return elements.get(id);},querySelector(){return new Element();}};
+globalThis.document={body:{classList:{contains:()=>false,add(){},remove(){},toggle(){}}},createElement(){return new Element();},getElementById(id){if(!elements.has(id))elements.set(id,new Element());return elements.get(id);},querySelector(){return new Element();}};
 const globalEvents=[];globalThis.addEventListener=(name)=>globalEvents.push(name);
 globalThis.innerWidth=1200;globalThis.innerHeight=800;globalThis.devicePixelRatio=1;
 const {resize}=await import('../src/world/renderer.js');resize();

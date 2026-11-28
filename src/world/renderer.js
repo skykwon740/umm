@@ -9,7 +9,7 @@ const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const fx = document.getElementById('fx'), fctx = fx.getContext('2d');
 const PX = 3;
 let W, H, img, buf, above;
-let CX = 0, CY = 0, targetCX = 0, targetCY = 0; // globe centre eases between exploration and results layouts
+let CX = 0, CY = 0, targetCX = 0, targetCY = 0, placed = false; // globe centre eases between exploration and results layouts
 const cellPx = () => view.R * Math.PI / 2 / N;
 function resize() {
   if (!innerWidth || !innerHeight) return;      // hidden window: wait for the resize event that gives it a size
@@ -20,6 +20,7 @@ function resize() {
   setPresentationMode(resultsOpen,W,H,routeSelected);
   targetCX = resultsOpen ? W * (routeSelected ? (W < 400 ? .24 : .30) : .5) : (W - document.getElementById('side').offsetWidth / PX) / 2;
   targetCY = resultsOpen ? H / 2 : (H + document.getElementById('top').offsetHeight / PX) / 2;
+  if (!placed) { CX = targetCX; CY = targetCY; placed = true; } // first layout: start in place instead of sliding in from the corner
   const k = PX * (devicePixelRatio || 1);
   fx.width = W * k; fx.height = H * k; fctx.setTransform(k, 0, 0, k, 0, 0); fctx.imageSmoothingEnabled = false;
   img = ctx.createImageData(W, H); buf = new Uint32Array(img.data.buffer); above = new Int32Array(W);
