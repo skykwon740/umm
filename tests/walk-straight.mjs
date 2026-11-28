@@ -1,4 +1,5 @@
 // 팀 피드백 11/27: 캐릭터가 그려진 길을 타고 가다 가지치기처럼 뻗어 나가지 않는다
+// 사용자 요청 11/28: 새 길은 육각형 줄을 따라 곧게, 꺾을 때는 각지게 (한 칸씩 지그재그로 흔들리지 않게)
 import assert from 'node:assert/strict';
 import {state,load,initializeWalker,nextWalkStep,awakenCurrentNode} from '../src/core/state.js';
 import {CELL_COUNT,cellNeighbours,cellVec,cellOf,vec,slerp,nodeCell,ll,DEG,RAD} from '../src/core/grid.js';
@@ -14,17 +15,21 @@ const journey=createJourney({wiki:{search:async(_lang,q)=>q,describe:async()=>''
 const navigation=createNavigation({project:()=>null,onArrive(){}});
 const walkAll=()=>{while(state.walkPath.length)navigation.step(nextWalkStep());};
 const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
-const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
 const checkSteps=(from,path,to)=>{
   assert.equal(path.at(-1),to,'the walk ends at the destination');
   [from,...path].reduce((a,b)=>{assert.ok(cellNeighbours(a).includes(b),'every step goes to a neighbour');return b;});
 };
-// 두 칸을 잇는 대원에서 한 칸 반(6°) 안에만 있으면 곧장 간 것이다
+// 곧장 간다 = 육각형 줄을 따라 곧게 가고 많아야 두 번 꺾는다(사용자 요청 11/28: 한 칸씩 지그재그 금지),
+// 그리고 가장 짧은 칸 수보다 2칸 넘게 돌아가지 않는다(옛길을 타고 가지 치지 않음: 팀 피드백 11/27)
+const tangent=(p,q)=>{const d=dot(p,q),t=[q[0]-p[0]*d,q[1]-p[1]*d,q[2]-p[2]*d],m=Math.hypot(...t);return t.map(v=>v/m);};
+const turnsOf=cells=>{let t=0;for(let i=2;i<cells.length;i++){const b=cellVec(cells[i-1]);
+  if(dot(tangent(b,cellVec(cells[i])),tangent(b,cellVec(cells[i-2])))>-.85)t++;}return t;};
+const hops=(a,b)=>{const d=new Map([[a,0]]),q=[a];for(let i=0;i<q.length&&!d.has(b);i++)for(const n of cellNeighbours(q[i]))if(!d.has(n)){d.set(n,d.get(q[i])+1);q.push(n);}return d.get(b);};
 const assertStraight=(from,path,to,why)=>{
   checkSteps(from,path,to);
-  const n=cross(cellVec(from),cellVec(to)),m=Math.hypot(...n);
-  const off=Math.max(...path.map(c=>Math.asin(Math.abs(dot(cellVec(c),n))/m)*DEG));
-  assert.ok(off<6,`${why}: the walk bends ${off.toFixed(1)}° away from the straight line`);
+  const turns=turnsOf([from,...path]);
+  assert.ok(turns<=2,`${why}: the walk turns ${turns} times (zigzag)`);
+  assert.ok(path.length<=hops(from,to)+2,`${why}: ${path.length} steps where ${hops(from,to)} would do`);
 };
 
 reset();resizeCamera(300,200);
@@ -89,4 +94,4 @@ for(const here of [0,600,1200]) {
   // 가장 짧은 칸 수는 48 이하. 선이 칸 모서리를 스치면 몇 칸 늘 수 있어 1.5배까지 본다
   assert.ok(state.walkPath.length<=72,'no wandering on the way to the far side');
 }
-console.log('PASS: first visits and unconnected islands are walked straight from the character, revisits stay on the painted road, antipodes are reachable.');
+console.log('PASS: first visits and unconnected islands are walked along hex rows with at most two turns, revisits stay on the painted road, antipodes are reachable.');
