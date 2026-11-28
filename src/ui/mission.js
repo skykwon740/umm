@@ -45,7 +45,7 @@ export function createMission({startJourney,onHome}) {
     onFollow:(t,lang)=>{const q=document.getElementById('q');if(q)q.value=t;startJourney(t,lang);},
   });
 
-  function tick(time){radio.tick();wanderer.tick(time);}
+  function tick(time){radio.tick();wanderer.tick(time);ending.tick();}
   // 임무 브리핑 창 없이 바로 무전 대사로 시작한다 (팀 결정). briefing.js는 쓰지 않는다
   function begin() {
     if(tutorial.isRunning()||state.busy)return;

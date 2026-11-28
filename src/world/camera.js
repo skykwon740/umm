@@ -1,11 +1,23 @@
 import {DEG,ll} from '../core/grid.js';
 export let camera=Object.freeze({lat:20,lon:0,R:60,tLat:20,tLon:0,tR:60});
 let initialized=false,tracking=true,lastTick=null;
+let savedPresentation=null;
 export function resumeTracking(walker) { tracking=true;followWalker(walker); }
 const publish=patch=>{camera=Object.freeze({...camera,...patch});};
 // 줌아웃 상태가 기본이다. 카메라는 스스로 확대·축소하지 않고, 휠로 바꾼 줌은 그대로 둔다.
 export function resizeCamera(width,height) {
   if(!initialized){const R=Math.min(width,height)*.42;publish({R,tR:R});initialized=true;}
+}
+// Keep the results globe compact enough to sit beside its stats and route details.
+export function setPresentationMode(active,width,height,routeSelected=false) {
+  if(active) {
+    if(!savedPresentation)savedPresentation={R:camera.R,tR:camera.tR};
+    const compact=width<400;
+    const R=Math.min(width,height)*(routeSelected?(compact ? .21 : .30):.28);
+    publish({R,tR:R});
+  } else if(savedPresentation) {
+    publish(savedPresentation);savedPresentation=null;
+  }
 }
 export function initializeCamera(walker) {
   tracking=true;const [lat,lon]=ll(walker);publish({lat,lon,tLat:lat,tLon:lon});
