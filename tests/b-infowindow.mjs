@@ -48,7 +48,7 @@ class Element {
 }
 let focused=null;
 const elements=new Map();
-globalThis.document={createElement(){return new Element();},getElementById(id){if(!elements.has(id))elements.set(id,new Element(id));return elements.get(id);},querySelector(){return new Element();}};
+globalThis.document={body:new Element('body'),createElement(){return new Element();},getElementById(id){if(!elements.has(id))elements.set(id,new Element(id));return elements.get(id);},querySelector(){return new Element();}};
 const $=id=>document.getElementById(id);
 const windowListeners={};
 globalThis.addEventListener=(type,handler)=>{(windowListeners[type]??=[]).push(handler);};

@@ -17,7 +17,7 @@ class Element {
     return new Proxy({},{get:(t,k)=>k==='createImageData'?image:k==='getImageData'?(x,y,w,h)=>image(w,h):k in t?t[k]:()=>{},set:(t,k,v)=>{t[k]=v;return true;}});}
 }
 const elements=new Map();
-globalThis.document={createElement(){return new Element();},getElementById(id){if(!elements.has(id))elements.set(id,new Element(id));return elements.get(id);},querySelector(){return new Element();}};
+globalThis.document={body:new Element('body'),createElement(){return new Element();},getElementById(id){if(!elements.has(id))elements.set(id,new Element(id));return elements.get(id);},querySelector(){return new Element();}};
 const $=id=>document.getElementById(id);
 globalThis.addEventListener=()=>{};globalThis.ResizeObserver=class{observe(){}};
 globalThis.innerWidth=1200;globalThis.innerHeight=800;globalThis.devicePixelRatio=1;
