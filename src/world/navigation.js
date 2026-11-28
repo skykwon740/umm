@@ -1,5 +1,5 @@
 import {N,CELL_COUNT,cellNeighbours,cellVec,cellOf,slerp,nodeCell,DEG,RAD} from '../core/grid.js';
-import {state,queueWalk,stepTo} from '../core/state.js';
+import {state,queueWalk,stepTo,routesAt,teleportTo} from '../core/state.js';
 import {focusCamera,resumeTracking} from './camera.js';
 const STEP=Math.PI/2/N*.9;   // 이웃 칸 사이 각도(라디안)보다 조금 작게: 칸 수 어림용
 const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
@@ -90,11 +90,22 @@ export function createNavigation({project,onArrive,onMessage=()=>{}}) {
     }
     return cur===to?out:[...out,...straightPath(cur,to)];
   }
+  // 두 칸이 같은 루트를 하나도 나누지 않으면 다른 루트다. 어느 한쪽이라도 루트를 모르면 같은 루트로 본다
+  function otherRoute(a,b) {
+    const ra=routesAt(a),rb=routesAt(b);
+    return ra.length>0&&rb.length>0&&!ra.some(r=>rb.includes(r));
+  }
   function walkTo(c) {
     if(state.busy||state.here<0)return false;
     if(c===state.here){queueWalk([]);return true;}
     if(!Number.isInteger(c)||c<0||c>=CELL_COUNT||!state.cells[c])return false;
     const node=state.nodes.find(n=>nodeCell(n)===c),firstVisit=node&&!node.awakened;
+    // 다른 루트에서 이미 만난 외계인: 길을 잇지 않고 순간이동한다
+    if(node&&!firstVisit&&otherRoute(state.here,c)) {
+      if(!teleportTo(c))return false;
+      if(state.walker)resumeTracking(state.walker);
+      onArrive();return true;
+    }
     const path=(!firstVisit&&paintedPath(state.here,c))||hexPath(state.here,c);
     const alien=Boolean(node),roots=state.cellRootSets[c]??[];
     const root=alien?(roots.length?roots[0]:state.cellRoots[c]>=0?state.cellRoots[c]:state.activeRoot):state.activeRoot;
